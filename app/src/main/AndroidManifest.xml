@@ -59,6 +59,12 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity
+            android:name=".view.login.WelcomeUIActivity"
+            android:exported="false"
+            android:label="@string/title_activity_welcome_uiactivity"
+            android:theme="@style/Theme.SplitStay"
+            android:windowSoftInputMode="adjustResize" />
     </application>
 
 </manifest>

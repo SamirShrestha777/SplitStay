@@ -2,4 +2,5 @@
     <string name="app_name">SplitStay</string>
     <string name="title_activity_main">MainActivity</string>
     <string name="title_activity_login_uiactivity">LoginUIActivity</string>
+    <string name="title_activity_welcome_uiactivity">WelcomeUIActivity</string>
 </resources>
