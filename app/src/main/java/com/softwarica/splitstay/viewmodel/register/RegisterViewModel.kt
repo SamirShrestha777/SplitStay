@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.softwarica.splitstay.repository.AuthRepository
 import com.softwarica.splitstay.repository.AuthRepositoryImpl
+import com.softwarica.splitstay.repository.EmailAlreadyRegisteredException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -69,12 +70,40 @@ class RegisterViewModel(
                     onSuccess(name, email, state.password)
                 }
                 .onFailure { e ->
-                    val message =
-                        if (e.message?.contains("already", ignoreCase = true) == true)
-                            "An account with this email already exists"
-                        else
-                            "Sign up failed. Check your connection and try again."
-                    _uiState.update { it.copy(isLoading = false, generalError = message) }
+                    val message = e.message.orEmpty().lowercase()
+                    when {
+
+                        e is EmailAlreadyRegisteredException || "already" in message ->
+                            _uiState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    emailError = "An account with this email already exists. Try signing in."
+                                )
+                            }
+
+
+                        "invalid" in message && "email" in message ->
+                            _uiState.update {
+                                it.copy(isLoading = false, emailError = "Enter a valid email address")
+                            }
+
+
+                        "rate" in message || "too many" in message || "429" in message ->
+                            _uiState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    generalError = "Too many attempts. Please wait a few minutes and try again."
+                                )
+                            }
+
+                        else ->
+                            _uiState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    generalError = "Sign up failed. Check your connection and try again."
+                                )
+                            }
+                    }
                 }
         }
     }

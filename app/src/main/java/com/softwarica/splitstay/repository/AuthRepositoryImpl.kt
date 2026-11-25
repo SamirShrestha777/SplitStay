@@ -9,6 +9,8 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 
+class EmailAlreadyRegisteredException : Exception("Email already registered")
+
 class AuthRepositoryImpl(
     private val auth: Auth = SupabaseClientProvider.client.auth
 ) : AuthRepository {
@@ -19,11 +21,17 @@ class AuthRepositoryImpl(
         password: String
     ): Result<Unit> = withContext(Dispatchers.IO) {
         try {
-            auth.signUpWith(Email) {
+
+            val user = auth.signUpWith(Email) {
                 this.email = email
                 this.password = password
                 data = buildJsonObject { put("name", name) }
             }
+
+            if (user != null && user.identities?.isEmpty() == true) {
+                return@withContext Result.failure(EmailAlreadyRegisteredException())
+            }
+
             Result.success(Unit)
         } catch (e: CancellationException) {
             throw e
