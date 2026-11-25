@@ -77,14 +77,14 @@ class RegisterUIActivity : ComponentActivity() {
                     onPasswordChange = viewModel::onPasswordChange,
                     onTogglePasswordVisibility = viewModel::onTogglePasswordVisibility,
                     onCreateAccountClick = {
-                        viewModel.onRegisterClick { _, _, _ ->
-                            // later: send the user to the verify-email screen instead
-                            AppNavigator.toLogin(this, finishCurrent = true)
+                        viewModel.onRegisterClick { _, email, _ ->
+
+                            AppNavigator.toVerifyEmail(this, email)
                         }
                     },
-                    // Back icon -> Welcome
+
                     onBackClick = { AppNavigator.toWelcome(this, finishCurrent = true) },
-                    // "Sign in" text -> Login
+
                     onSignInClick = { AppNavigator.toLogin(this, finishCurrent = true) },
                     onGoogleClick = { /* TODO: Google sign-in */ }
                 )

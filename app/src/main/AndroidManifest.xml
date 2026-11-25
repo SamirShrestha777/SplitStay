@@ -32,6 +32,11 @@
             android:theme="@style/Theme.SplitStay"
             android:windowSoftInputMode="adjustResize" />
         <activity
+            android:name=".view.verifyemail.VerifyEmailActivity"
+            android:exported="false"
+            android:theme="@style/Theme.SplitStay"
+            android:windowSoftInputMode="adjustResize" />
+        <activity
             android:name=".view.login.WelcomeUIActivity"
             android:exported="true"
             android:label="@string/title_activity_welcome_uiactivity"

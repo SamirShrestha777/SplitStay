@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -42,6 +41,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -57,10 +57,10 @@ import com.softwarica.splitstay.repository.VerifyEmailRepository
 import com.softwarica.splitstay.viewmodel.verifyemail.VerifyEmailUiState
 import com.softwarica.splitstay.viewmodel.verifyemail.VerifyEmailViewModel
 
-// ── Font (same as RegisterScreen) ──────────────────────────────────────────────
+
 private val AppFont: FontFamily = FontFamily.Default
 
-// ── Route (stateful wrapper) ───────────────────────────────────────────────────
+
 
 @Composable
 fun VerifyEmailRoute(
@@ -101,7 +101,7 @@ fun VerifyEmailRoute(
     )
 }
 
-// ── Screen (stateless) ─────────────────────────────────────────────────────────
+
 
 @Composable
 fun VerifyEmailScreen(
@@ -116,7 +116,7 @@ fun VerifyEmailScreen(
     val scrollState = rememberScrollState()
     val focusRequester = remember { FocusRequester() }
 
-    // Auto-focus the hidden text field on open
+
     LaunchedEffect(Unit) {
         focusRequester.requestFocus()
     }
@@ -132,7 +132,7 @@ fun VerifyEmailScreen(
     ) {
         Spacer(modifier = Modifier.height(16.dp))
 
-        // ── Back arrow ─────────────────────────────────────────────────────────
+
         IconButton(onClick = onBackClick, modifier = Modifier.size(40.dp)) {
             Icon(
                 imageVector = BackArrowIcon,
@@ -144,7 +144,7 @@ fun VerifyEmailScreen(
 
         Spacer(modifier = Modifier.height(28.dp))
 
-        // ── Mail icon in soft green circle ──────────────────────────────────────
+
         Box(
             modifier = Modifier
                 .size(64.dp)
@@ -164,7 +164,7 @@ fun VerifyEmailScreen(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // ── Eyebrow ────────────────────────────────────────────────────────────
+
         Text(
             text = "ALMOST THERE",
             color = PrimaryGreen,
@@ -176,7 +176,7 @@ fun VerifyEmailScreen(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // ── Title ──────────────────────────────────────────────────────────────
+
         Text(
             text = "Verify your email",
             color = TitleColor,
@@ -187,7 +187,7 @@ fun VerifyEmailScreen(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // ── Subtitle with bold email ───────────────────────────────────────────
+
         Text(
             text = buildAnnotatedString {
                 withStyle(SpanStyle(color = SubtitleGray, fontWeight = FontWeight.Normal)) {
@@ -204,7 +204,7 @@ fun VerifyEmailScreen(
 
         Spacer(modifier = Modifier.height(4.dp))
 
-        // ── "Wrong email?" link ────────────────────────────────────────────────
+
         Text(
             text = "Wrong email?",
             color = PrimaryGreen,
@@ -220,7 +220,7 @@ fun VerifyEmailScreen(
 
         Spacer(modifier = Modifier.height(28.dp))
 
-        // ── Six code boxes with hidden BasicTextField ──────────────────────────
+
         CodeInputRow(
             code = uiState.code,
             onCodeChange = onCodeChange,
@@ -228,7 +228,7 @@ fun VerifyEmailScreen(
             focusRequester = focusRequester
         )
 
-        // ── Error text ─────────────────────────────────────────────────────────
+
         if (uiState.errorMessage != null) {
             Spacer(modifier = Modifier.height(8.dp))
             Text(
@@ -241,7 +241,7 @@ fun VerifyEmailScreen(
 
         Spacer(modifier = Modifier.height(28.dp))
 
-        // ── Verify button ──────────────────────────────────────────────────────
+
         val isEnabled = uiState.code.length == 6 && !uiState.isVerifying
         Button(
             onClick = onVerifyClick,
@@ -275,7 +275,7 @@ fun VerifyEmailScreen(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // ── Resend row ─────────────────────────────────────────────────────────
+
         Box(
             modifier = Modifier.fillMaxWidth(),
             contentAlignment = Alignment.Center
@@ -323,7 +323,7 @@ fun VerifyEmailScreen(
     }
 }
 
-// ── Code input boxes ───────────────────────────────────────────────────────────
+
 
 @Composable
 private fun CodeInputRow(
@@ -332,55 +332,59 @@ private fun CodeInputRow(
     isError: Boolean,
     focusRequester: FocusRequester
 ) {
-    Box {
-        // Hidden BasicTextField that handles all keyboard input, paste, backspace
+
+    val digitColor = Color(0xFF17372F)
+    val boxFill = Color.White
+    val normalBorder = Color(0xFFEADFC8)
+    val activeBorder = Color(0xFF0F5F57)
+    val errorBorder = Color(0xFFC0392B)
+
+    Box(modifier = Modifier.fillMaxWidth()) {
+
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            for (i in 0 until 6) {
+                val char = code.getOrNull(i)
+                val isFocused = code.length == i
+                val borderColor = when {
+                    isError -> errorBorder
+                    isFocused -> activeBorder
+                    else -> normalBorder
+                }
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(56.dp)
+                        .background(boxFill, RoundedCornerShape(16.dp))
+                        .border(1.dp, borderColor, RoundedCornerShape(16.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = char?.toString() ?: "",
+                        color = digitColor,
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = AppFont,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
+        }
+
+
         BasicTextField(
             value = TextFieldValue(text = code, selection = TextRange(code.length)),
             onValueChange = { onCodeChange(it.text) },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             singleLine = true,
+            textStyle = TextStyle(color = Color.Transparent),
             cursorBrush = SolidColor(Color.Transparent),
             modifier = Modifier
+                .matchParentSize()
                 .focusRequester(focusRequester)
-                .fillMaxWidth()
-                .height(1.dp) // effectively invisible
-                .background(Color.Transparent),
-            decorationBox = { innerTextField ->
-                // Draw the visible code boxes over the hidden field
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    for (i in 0 until 6) {
-                        val char = code.getOrNull(i)
-                        val isFocused = code.length == i
-                        val borderColor = when {
-                            isError -> ErrorRed
-                            isFocused -> PrimaryGreen
-                            else -> InputBorder
-                        }
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(56.dp)
-                                .background(InputFill, RoundedCornerShape(16.dp))
-                                .border(1.dp, borderColor, RoundedCornerShape(16.dp)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = char?.toString() ?: "",
-                                color = TitleColor,
-                                fontSize = 22.sp,
-                                fontWeight = FontWeight.Bold,
-                                fontFamily = AppFont,
-                                textAlign = TextAlign.Center
-                            )
-                        }
-                    }
-                }
-                // The actual inner text field (invisible, positioned behind)
-                innerTextField()
-            }
         )
     }
 }
