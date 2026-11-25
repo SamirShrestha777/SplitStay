@@ -1,9 +1,15 @@
 package com.softwarica.splitstay.view.register
 
+import android.os.Bundle
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
+import androidx.activity.viewModels
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,7 +21,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
@@ -23,8 +28,9 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -32,61 +38,63 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import com.softwarica.splitstay.R
+import com.softwarica.splitstay.navigation.AppNavigator
+import com.softwarica.splitstay.ui.theme.SplitStayTheme
 import com.softwarica.splitstay.viewmodel.register.RegisterUiState
 import com.softwarica.splitstay.viewmodel.register.RegisterViewModel
 
-// ── Font (swap this single variable to change the whole screen) ────────────────
-private val AppFont: FontFamily = FontFamily.Default
+class RegisterUIActivity : ComponentActivity() {
 
-// ── Route (stateful wrapper) ───────────────────────────────────────────────────
+    private val viewModel: RegisterViewModel by viewModels()
 
-@Composable
-fun RegisterRoute(
-    onBackClick: () -> Unit = {},
-    onSignInClick: () -> Unit = {},
-    onGoogleClick: () -> Unit = {},
-    onRegisterSuccess: (name: String, email: String, password: String) -> Unit = { _, _, _ -> },
-    viewModel: RegisterViewModel = viewModel()
-) {
-    val uiState by viewModel.uiState.collectAsState()
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
+        setContent {
+            SplitStayTheme {
+                val uiState by viewModel.uiState.collectAsState()
 
-    RegisterScreen(
-        uiState = uiState,
-        onNameChange = viewModel::onNameChange,
-        onEmailChange = viewModel::onEmailChange,
-        onPasswordChange = viewModel::onPasswordChange,
-        onTogglePasswordVisibility = viewModel::onTogglePasswordVisibility,
-        onCreateAccountClick = { viewModel.onRegisterClick(onRegisterSuccess) },
-        onBackClick = onBackClick,
-        onSignInClick = onSignInClick,
-        onGoogleClick = onGoogleClick
-    )
+                RegisterBody(
+                    uiState = uiState,
+                    onNameChange = viewModel::onNameChange,
+                    onEmailChange = viewModel::onEmailChange,
+                    onPasswordChange = viewModel::onPasswordChange,
+                    onTogglePasswordVisibility = viewModel::onTogglePasswordVisibility,
+                    onCreateAccountClick = {
+                        viewModel.onRegisterClick { _, _, _ ->
+                            // later: send the user to the verify-email screen instead
+                            AppNavigator.toLogin(this, finishCurrent = true)
+                        }
+                    },
+                    // Back icon -> Welcome
+                    onBackClick = { AppNavigator.toWelcome(this, finishCurrent = true) },
+                    // "Sign in" text -> Login
+                    onSignInClick = { AppNavigator.toLogin(this, finishCurrent = true) },
+                    onGoogleClick = { /* TODO: Google sign-in */ }
+                )
+            }
+        }
+    }
 }
 
-// ── Screen (stateless) ─────────────────────────────────────────────────────────
-
 @Composable
-fun RegisterScreen(
+fun RegisterBody(
     uiState: RegisterUiState,
     onNameChange: (String) -> Unit = {},
     onEmailChange: (String) -> Unit = {},
@@ -98,127 +106,142 @@ fun RegisterScreen(
     onGoogleClick: () -> Unit = {}
 ) {
     val focusManager = LocalFocusManager.current
-    val scrollState = rememberScrollState()
-    val fieldShape = RoundedCornerShape(16.dp)
+
+    val backgroundColor = Color(0xFFFEF9F0)
+    val primaryColor = Color(0xFF0F625C)
+    val errorColor = Color(0xFFD32F2F)
+
+    val fieldColors = OutlinedTextFieldDefaults.colors(
+        focusedContainerColor = Color.White,
+        unfocusedContainerColor = Color.White,
+        errorContainerColor = Color.White,
+        focusedBorderColor = primaryColor,
+        unfocusedBorderColor = Color(0xFFD8D8D8),
+        errorBorderColor = errorColor,
+        focusedTextColor = Color.Black,
+        unfocusedTextColor = Color.Black
+    )
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(ScreenBackground)
+            .background(backgroundColor)
             .imePadding()
-            .verticalScroll(scrollState)
+            .verticalScroll(rememberScrollState())
             .padding(horizontal = 20.dp)
     ) {
-        // ── Status bar spacing ─────────────────────────────────────────────────
-        Spacer(modifier = Modifier.height(48.dp))
+        Spacer(modifier = Modifier.height(40.dp))
 
-        // ── Top row: back arrow + app logo ─────────────────────────────────────
+        // Top bar
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 10.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(onClick = onBackClick, modifier = Modifier.size(40.dp)) {
-                Icon(
-                    imageVector = BackArrowIcon,
-                    contentDescription = "Back",
-                    tint = DarkGreen,
-                    modifier = Modifier.size(24.dp)
-                )
-            }
+            Image(
+                painter = painterResource(id = R.drawable.backicon),
+                contentDescription = "Back Icon",
+                modifier = Modifier
+                    .size(18.dp)
+                    .clickable { onBackClick() }
+            )
             AppLogo(size = 40.dp)
         }
 
-        Spacer(modifier = Modifier.height(28.dp))
+        Spacer(modifier = Modifier.height(25.dp))
 
-        // ── Eyebrow ───────────────────────────────────────────────────────────
         Text(
             text = "WELCOME HOME",
-            color = PrimaryGreen,
             fontSize = 12.sp,
+            color = primaryColor,
             fontWeight = FontWeight.Bold,
-            fontFamily = AppFont,
-            letterSpacing = 2.sp
+            letterSpacing = 1.5.sp
         )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        // ── Title ──────────────────────────────────────────────────────────────
         Text(
             text = "Create your account",
-            color = DarkGreen,
-            fontSize = 28.sp,
+            fontSize = 22.sp,
+            color = Color(0xFF163B38),
             fontWeight = FontWeight.Bold,
-            fontFamily = AppFont
+            modifier = Modifier.padding(top = 8.dp)
         )
-
-        Spacer(modifier = Modifier.height(6.dp))
-
-        // ── Subtitle ──────────────────────────────────────────────────────────
         Text(
             text = "Start making shared living simpler.",
-            color = SubtitleGray,
-            fontSize = 16.sp,
-            fontWeight = FontWeight.Normal,
-            fontFamily = AppFont
+            fontSize = 13.sp,
+            color = Color.Gray,
+            modifier = Modifier.padding(top = 5.dp)
         )
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(25.dp))
 
-        // ── Field 1: Your name ────────────────────────────────────────────────
-        FieldLabel("Your name")
-        Spacer(modifier = Modifier.height(6.dp))
-        RegisterTextField(
+        // Name
+        Text(text = "Your name", fontSize = 12.sp, color = Color.DarkGray)
+        OutlinedTextField(
             value = uiState.name,
             onValueChange = onNameChange,
-            placeholder = "e.g. Aayush",
+            placeholder = { Text("e.g. Aayush", fontSize = 12.sp, color = Color.Gray) },
+            textStyle = TextStyle(fontSize = 14.sp),
             isError = uiState.nameError != null,
-            shape = fieldShape,
-            keyboardOptions = KeyboardOptions(
-                imeAction = ImeAction.Next
-            ),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 8.dp),
+            shape = RoundedCornerShape(10.dp),
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
             keyboardActions = KeyboardActions(
                 onNext = { focusManager.moveFocus(FocusDirection.Down) }
-            )
+            ),
+            colors = fieldColors
         )
-        ErrorText(uiState.nameError)
+        FieldError(uiState.nameError, errorColor)
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(15.dp))
 
-        // ── Field 2: Email address ────────────────────────────────────────────
-        FieldLabel("Email address")
-        Spacer(modifier = Modifier.height(6.dp))
-        RegisterTextField(
+        // Email
+        Text(text = "Email address", fontSize = 12.sp, color = Color.DarkGray)
+        OutlinedTextField(
             value = uiState.email,
             onValueChange = onEmailChange,
-            placeholder = "you@example.com",
+            placeholder = { Text("you@example.com", fontSize = 12.sp, color = Color.Gray) },
+            textStyle = TextStyle(fontSize = 14.sp),
             isError = uiState.emailError != null,
-            shape = fieldShape,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 8.dp),
+            shape = RoundedCornerShape(10.dp),
+            singleLine = true,
             keyboardOptions = KeyboardOptions(
                 keyboardType = KeyboardType.Email,
                 imeAction = ImeAction.Next
             ),
             keyboardActions = KeyboardActions(
                 onNext = { focusManager.moveFocus(FocusDirection.Down) }
-            )
+            ),
+            colors = fieldColors
         )
-        ErrorText(uiState.emailError)
+        FieldError(uiState.emailError, errorColor)
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(15.dp))
 
-        // ── Field 3: Password ─────────────────────────────────────────────────
-        FieldLabel("Password")
-        Spacer(modifier = Modifier.height(6.dp))
-        RegisterTextField(
+        // Password
+        Text(text = "Password", fontSize = 12.sp, color = Color.DarkGray)
+        OutlinedTextField(
             value = uiState.password,
             onValueChange = onPasswordChange,
-            placeholder = "At least 6 characters",
+            placeholder = { Text("At least 6 characters", fontSize = 12.sp, color = Color.Gray) },
+            textStyle = TextStyle(fontSize = 14.sp),
             isError = uiState.passwordError != null,
-            shape = fieldShape,
-            visualTransformation = if (uiState.passwordVisible)
+            visualTransformation = if (uiState.passwordVisible) {
                 VisualTransformation.None
-            else
-                PasswordVisualTransformation(),
+            } else {
+                PasswordVisualTransformation()
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 8.dp),
+            shape = RoundedCornerShape(10.dp),
+            singleLine = true,
             keyboardOptions = KeyboardOptions(
                 keyboardType = KeyboardType.Password,
                 imeAction = ImeAction.Done
@@ -228,204 +251,165 @@ fun RegisterScreen(
             ),
             trailingIcon = {
                 IconButton(onClick = onTogglePasswordVisibility) {
-                    Icon(
-                        imageVector = if (uiState.passwordVisible) EyeIcon else EyeOffIcon,
+                    Image(
+                        painter = painterResource(
+                            id = if (uiState.passwordVisible) R.drawable.pwvisible else R.drawable.pwhide
+                        ),
                         contentDescription = if (uiState.passwordVisible) "Hide password" else "Show password",
-                        tint = PlaceholderGray,
-                        modifier = Modifier.size(22.dp)
+                        modifier = Modifier.size(20.dp)
                     )
                 }
-            }
+            },
+            colors = fieldColors
         )
-        ErrorText(uiState.passwordError)
+        FieldError(uiState.passwordError, errorColor)
+        FieldError(uiState.generalError, errorColor)
 
-        Spacer(modifier = Modifier.height(28.dp))
-
-        // ── Create account button ─────────────────────────────────────────────
+        // Create account button
         Button(
             onClick = onCreateAccountClick,
+            enabled = !uiState.isLoading,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(54.dp),
-            shape = RoundedCornerShape(16.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = PrimaryGreen,
-                contentColor = ButtonText
-            )
+                .height(50.dp)
+                .padding(top = 15.dp),
+            shape = RoundedCornerShape(9.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = primaryColor)
         ) {
-            Text(
-                text = "Create account",
-                fontSize = 17.sp,
-                fontWeight = FontWeight.Bold,
-                fontFamily = AppFont
-            )
+            if (uiState.isLoading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(20.dp),
+                    color = Color.White,
+                    strokeWidth = 2.dp
+                )
+            } else {
+                Text(
+                    text = "Create account",
+                    fontSize = 14.sp,
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold
+                )
+            }
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
-
-        // ── Divider row ───────────────────────────────────────────────────────
+        // Divider
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 15.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            HorizontalDivider(
-                modifier = Modifier.weight(1f),
-                thickness = 1.dp,
-                color = DividerColor
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(1.dp)
+                    .background(Color(0xFFDADADA))
             )
             Text(
                 text = "or",
-                color = SubtitleGray,
-                fontSize = 14.sp,
-                fontFamily = AppFont,
-                modifier = Modifier.padding(horizontal = 16.dp)
+                fontSize = 11.sp,
+                color = Color.Gray,
+                modifier = Modifier.padding(horizontal = 12.dp)
             )
-            HorizontalDivider(
-                modifier = Modifier.weight(1f),
-                thickness = 1.dp,
-                color = DividerColor
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(1.dp)
+                    .background(Color(0xFFDADADA))
             )
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
-
-        // ── Google button ─────────────────────────────────────────────────────
-        Box(
+        // Google button
+        Card(
+            onClick = onGoogleClick,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(54.dp)
-                .border(
-                    width = 1.dp,
-                    color = PrimaryGreen,
-                    shape = RoundedCornerShape(16.dp)
-                )
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = onGoogleClick
-                ),
-            contentAlignment = Alignment.Center
+                .height(48.dp)
+                .padding(top = 12.dp),
+            shape = RoundedCornerShape(9.dp),
+            colors = CardDefaults.cardColors(containerColor = backgroundColor),
+            border = BorderStroke(1.dp, primaryColor)
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                GoogleIcon(size = 20.dp)
-                Spacer(modifier = Modifier.width(10.dp))
+            Row(
+                modifier = Modifier.fillMaxSize(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                Image(
+                    painter = painterResource(id = R.drawable.google),
+                    contentDescription = "Google",
+                    modifier = Modifier.size(18.dp)
+                )
                 Text(
                     text = "Continue with Google",
-                    color = PrimaryGreen,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Medium,
-                    fontFamily = AppFont
+                    fontSize = 13.sp,
+                    color = primaryColor,
+                    modifier = Modifier.padding(start = 8.dp)
                 )
             }
         }
 
-        Spacer(modifier = Modifier.height(28.dp))
-
-        // ── Bottom text ───────────────────────────────────────────────────────
-        Box(
-            modifier = Modifier.fillMaxWidth(),
-            contentAlignment = Alignment.Center
+        // Footer
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 18.dp, bottom = 20.dp),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            val annotated = buildAnnotatedString {
-                withStyle(SpanStyle(color = SubtitleGray, fontWeight = FontWeight.Normal)) {
-                    append("Already have an account? ")
-                }
-                pushStringAnnotation(tag = "SIGNIN", annotation = "signin")
-                withStyle(SpanStyle(color = DarkGreen, fontWeight = FontWeight.Bold)) {
-                    append("Sign in")
-                }
-                pop()
-            }
+            Text(text = "Already have an account? ", fontSize = 11.sp, color = Color.Gray)
             Text(
-                text = annotated,
-                fontSize = 14.sp,
-                fontFamily = AppFont,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = onSignInClick
-                )
+                text = "Sign in",
+                fontSize = 11.sp,
+                color = primaryColor,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.clickable { onSignInClick() }
             )
         }
-
-        // ── Bottom cream space as in the image ───────────────────────────────
-        Spacer(modifier = Modifier.height(40.dp))
     }
 }
 
-// ── Private composable helpers ─────────────────────────────────────────────────
-
 @Composable
-private fun FieldLabel(text: String) {
-    Text(
-        text = text,
-        color = DarkGreen,
-        fontSize = 15.sp,
-        fontWeight = FontWeight.Bold,
-        fontFamily = AppFont
-    )
-}
-
-@Composable
-private fun RegisterTextField(
-    value: String,
-    onValueChange: (String) -> Unit,
-    placeholder: String,
-    isError: Boolean,
-    shape: RoundedCornerShape,
-    visualTransformation: VisualTransformation = VisualTransformation.None,
-    keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
-    keyboardActions: KeyboardActions = KeyboardActions.Default,
-    trailingIcon: @Composable (() -> Unit)? = null
-) {
-    OutlinedTextField(
-        value = value,
-        onValueChange = onValueChange,
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(54.dp),
-        placeholder = {
-            Text(
-                text = placeholder,
-                color = PlaceholderGray,
-                fontSize = 15.sp,
-                fontFamily = AppFont
-            )
-        },
-        trailingIcon = trailingIcon,
-        isError = isError,
-        visualTransformation = visualTransformation,
-        keyboardOptions = keyboardOptions,
-        keyboardActions = keyboardActions,
-        singleLine = true,
-        shape = shape,
-        textStyle = TextStyle(
-            color = DarkGreen,
-            fontSize = 15.sp,
-            fontFamily = AppFont
-        ),
-        colors = OutlinedTextFieldDefaults.colors(
-            focusedContainerColor = InputBackground,
-            unfocusedContainerColor = InputBackground,
-            errorContainerColor = InputBackground,
-            focusedBorderColor = PrimaryGreen,
-            unfocusedBorderColor = InputBorder,
-            errorBorderColor = ErrorRed,
-            cursorColor = PrimaryGreen
-        )
-    )
-}
-
-@Composable
-private fun ErrorText(error: String?) {
+private fun FieldError(error: String?, color: Color) {
     if (error != null) {
-        Spacer(modifier = Modifier.height(4.dp))
         Text(
             text = error,
-            color = ErrorRed,
+            color = color,
             fontSize = 12.sp,
-            fontFamily = AppFont
+            modifier = Modifier.padding(top = 4.dp)
         )
     }
+}
+
+@Preview(showBackground = true, showSystemUi = true)
+@Composable
+fun RegisterPreview() {
+    SplitStayTheme {
+        RegisterBody(uiState = RegisterUiState())
+    }
+}
+
+@Composable
+fun RegisterRoute(
+    onRegisterSuccess: (name: String, email: String, password: String) -> Unit,
+    onBackClick: () -> Unit = {},
+    onSignInClick: () -> Unit = {},
+    onGoogleClick: () -> Unit = {}
+) {
+    val viewModel: RegisterViewModel = viewModel()
+    val uiState by viewModel.uiState.collectAsState()
+
+    RegisterBody(
+        uiState = uiState,
+        onNameChange = viewModel::onNameChange,
+        onEmailChange = viewModel::onEmailChange,
+        onPasswordChange = viewModel::onPasswordChange,
+        onTogglePasswordVisibility = viewModel::onTogglePasswordVisibility,
+        onCreateAccountClick = {
+            viewModel.onRegisterClick(onRegisterSuccess)
+        },
+        onBackClick = onBackClick,
+        onSignInClick = onSignInClick,
+        onGoogleClick = onGoogleClick
+    )
 }

@@ -7,6 +7,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -46,6 +47,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.softwarica.splitstay.R
+import com.softwarica.splitstay.navigation.AppNavigator
 import com.softwarica.splitstay.ui.theme.SplitStayTheme
 import com.softwarica.splitstay.view.register.AppLogo
 
@@ -55,14 +57,22 @@ class LoginUIActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             SplitStayTheme {
-                LoginBody()
+                LoginBody(
+                    // Back icon -> Welcome
+                    onBackClick = { AppNavigator.toWelcome(this, finishCurrent = true) },
+                    // "Create account" -> Register
+                    onCreateAccountClick = { AppNavigator.toRegister(this, finishCurrent = true) }
+                )
             }
         }
     }
 }
 
 @Composable
-fun LoginBody() {
+fun LoginBody(
+    onBackClick: () -> Unit = {},
+    onCreateAccountClick: () -> Unit = {}
+) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
@@ -98,7 +108,9 @@ fun LoginBody() {
             Image(
                 painter = painterResource(id = R.drawable.backicon),
                 contentDescription = "Back Icon",
-                modifier = Modifier.size(18.dp)
+                modifier = Modifier
+                    .size(18.dp)
+                    .clickable { onBackClick() }
             )
             AppLogo(size = 40.dp)
         }
@@ -278,7 +290,8 @@ fun LoginBody() {
                 text = "Create account",
                 fontSize = 11.sp,
                 color = primaryColor,
-                fontWeight = FontWeight.SemiBold
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.clickable { onCreateAccountClick() }
             )
         }
     }

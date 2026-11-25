@@ -33,6 +33,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.softwarica.splitstay.R
+import com.softwarica.splitstay.navigation.AppNavigator
 import com.softwarica.splitstay.ui.theme.SplitStayTheme
 import com.softwarica.splitstay.view.register.AppLogo
 
@@ -43,14 +44,20 @@ class WelcomeUIActivity : ComponentActivity() {
 
         setContent {
             SplitStayTheme {
-                WelcomeBody()
+                WelcomeBody(
+                    onGetStartedClick = { AppNavigator.toRegister(this) },
+                    onSignInClick = { AppNavigator.toLogin(this) }
+                )
             }
         }
     }
 }
 
 @Composable
-fun WelcomeBody() {
+fun WelcomeBody(
+    onGetStartedClick: () -> Unit = {},
+    onSignInClick: () -> Unit = {}
+) {
     val backgroundColor = Color(0xFFFEF9F0)
     val primaryColor = Color(0xFF0F625C)
 
@@ -100,8 +107,9 @@ fun WelcomeBody() {
 
         Spacer(modifier = Modifier.height(45.dp))
 
+        // Get started -> Register screen
         Button(
-            onClick = {},
+            onClick = onGetStartedClick,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(48.dp),
@@ -118,8 +126,9 @@ fun WelcomeBody() {
             )
         }
 
+        // Sign in -> Login screen
         Button(
-            onClick = {},
+            onClick = onSignInClick,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(48.dp)

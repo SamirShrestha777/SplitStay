@@ -7,5 +7,7 @@ data class RegisterUiState(
     val passwordVisible: Boolean = false,
     val nameError: String? = null,
     val emailError: String? = null,
-    val passwordError: String? = null
+    val passwordError: String? = null,
+    val isLoading: Boolean = false,
+    val generalError: String? = null
 )
