@@ -1,19 +1,7 @@
 package com.softwarica.splitstay.view.login
 
 import android.os.Bundle
-import android.util.Patterns
 import android.widget.Toast
-import androidx.compose.runtime.rememberCoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import org.json.JSONException
-import org.json.JSONObject
-import java.net.HttpURLConnection
-import java.net.SocketTimeoutException
-import java.net.URL
-import java.net.UnknownHostException
-import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -43,13 +31,13 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -59,114 +47,29 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.softwarica.splitstay.R
 import com.softwarica.splitstay.navigation.AppNavigator
 import com.softwarica.splitstay.ui.theme.SplitStayTheme
 import com.softwarica.splitstay.view.register.AppLogo
-
-object SupabaseAuth {
-    private const val SUPABASE_URL = "https://igdvaxdocuboppoayrzo.supabase.co"
-    private const val SUPABASE_ANON_KEY = "sb_publishable_NSQf-rp6nIaUNm7-yzglUg_DfIq1fOy"
-
-    sealed class Result {
-        data class Success(val accessToken: String, val userId: String) : Result()
-        data class Failure(val message: String) : Result()
-    }
-
-    suspend fun signIn(email: String, password: String): Result = withContext(Dispatchers.IO) {
-        var conn: HttpURLConnection? = null
-        try {
-            conn = (URL("$SUPABASE_URL/auth/v1/token?grant_type=password")
-                .openConnection() as HttpURLConnection).apply {
-                requestMethod = "POST"
-                connectTimeout = 15000
-                readTimeout = 15000
-                doOutput = true
-                setRequestProperty("apikey", SUPABASE_ANON_KEY)
-                setRequestProperty("Content-Type", "application/json")
-            }
-            val body = JSONObject()
-                .put("email", email.trim())
-                .put("password", password)
-                .toString()
-            conn.outputStream.use { it.write(body.toByteArray()) }
-
-            val code = conn.responseCode
-            val text = (if (code in 200..299) conn.inputStream else conn.errorStream)
-                ?.bufferedReader()?.use { it.readText() }.orEmpty()
-            val json = if (text.isNotBlank()) JSONObject(text) else JSONObject()
-
-            if (code in 200..299) {
-                Result.Success(
-                    accessToken = json.optString("access_token"),
-                    userId = json.optJSONObject("user")?.optString("id").orEmpty()
-                )
-            } else {
-                val errorCode = json.optString("error_code")
-                Result.Failure(
-                    when (errorCode) {
-                        "email_not_confirmed" -> "Please confirm your email first."
-                        "invalid_credentials" -> "Incorrect email or password."
-                        else -> json.optString("msg")
-                            .ifBlank { json.optString("error_description") }
-                            .ifBlank { "Incorrect email or password." }
-                    }
-                )
-            }
-        } catch (e: Exception) {
-            Log.e("SupabaseAuth", "Sign-in failed", e)
-            Result.Failure(
-                when {
-                    SUPABASE_URL.contains("YOUR-PROJECT-ID") ->
-                        "Set your Supabase URL and anon key in SupabaseAuth."
-                    e is SecurityException ->
-                        "Add the INTERNET permission to AndroidManifest.xml."
-                    e is UnknownHostException ->
-                        "Can't find the server. Check the Supabase URL and your internet."
-                    e is SocketTimeoutException ->
-                        "The request timed out. Please try again."
-                    e is JSONException ->
-                        "Unexpected response from the server. Check the Supabase URL."
-                    else -> "Sign-in failed: ${e.javaClass.simpleName}"
-                }
-            )
-        } finally {
-            conn?.disconnect()
-        }
-    }
-}
+import com.softwarica.splitstay.viewmodel.login.LoginUiState
+import com.softwarica.splitstay.viewmodel.login.LoginViewModel
 
 class LoginUIActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            val scope = rememberCoroutineScope()
             SplitStayTheme {
-                LoginBody(
+                LoginScreen(
                     // Back icon -> Welcome
                     onBackClick = { AppNavigator.toWelcome(this, finishCurrent = true) },
                     // "Create account" -> Register
                     onCreateAccountClick = { AppNavigator.toRegister(this, finishCurrent = true) },
-                    // Called only after local validation passes.
-                    // Hook up your real auth here and call onInvalidCredentials()
-                    // when the server says the email/password is wrong.
-                    onSignInClick = { email, password, onFailure, onSuccess ->
-                        scope.launch {
-                            when (val result = SupabaseAuth.signIn(email, password)) {
-                                is SupabaseAuth.Result.Success -> {
-                                    onSuccess()
-                                    Toast.makeText(
-                                        this@LoginUIActivity,
-                                        "Login successful",
-                                        Toast.LENGTH_SHORT
-                                    ).show()
-                                    // TODO: navigate to your home screen here, e.g.
-                                    // AppNavigator.toHome(this@LoginUIActivity, finishCurrent = true)
-                                }
-                                is SupabaseAuth.Result.Failure -> onFailure(result.message)
-                            }
-                        }
+                    // Login worked
+                    onLoginSuccess = {
+                        // TODO: navigate to your home screen, e.g.
+                        // AppNavigator.toHome(this, finishCurrent = true)
                     }
                 )
             }
@@ -174,27 +77,51 @@ class LoginUIActivity : ComponentActivity() {
     }
 }
 
+/**
+ * Stateful wrapper: connects the ViewModel to the UI.
+ */
+@Composable
+fun LoginScreen(
+    onBackClick: () -> Unit,
+    onCreateAccountClick: () -> Unit,
+    onLoginSuccess: () -> Unit,
+    viewModel: LoginViewModel = viewModel()
+) {
+    val state by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
+
+    LaunchedEffect(state.loginSuccess) {
+        if (state.loginSuccess) {
+            Toast.makeText(context, "Login successful", Toast.LENGTH_SHORT).show()
+            onLoginSuccess()
+            viewModel.onLoginSuccessHandled()
+        }
+    }
+
+    LoginBody(
+        state = state,
+        onEmailChange = viewModel::onEmailChange,
+        onPasswordChange = viewModel::onPasswordChange,
+        onTogglePasswordVisibility = viewModel::onTogglePasswordVisibility,
+        onSignInClick = viewModel::onSignInClick,
+        onBackClick = onBackClick,
+        onCreateAccountClick = onCreateAccountClick
+    )
+}
+
+/**
+ * Stateless UI: draws whatever LoginUiState says. No logic in here.
+ */
 @Composable
 fun LoginBody(
+    state: LoginUiState,
+    onEmailChange: (String) -> Unit = {},
+    onPasswordChange: (String) -> Unit = {},
+    onTogglePasswordVisibility: () -> Unit = {},
+    onSignInClick: () -> Unit = {},
     onBackClick: () -> Unit = {},
-    onCreateAccountClick: () -> Unit = {},
-    onSignInClick: (
-        email: String,
-        password: String,
-        onFailure: (message: String) -> Unit,
-        onSuccess: () -> Unit
-    ) -> Unit = { _, _, _, _ -> }
+    onCreateAccountClick: () -> Unit = {}
 ) {
-    var authFailed by remember { mutableStateOf(false) }
-    var isLoading by remember { mutableStateOf(false) }
-    var email by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
-    var passwordVisible by remember { mutableStateOf(false) }
-
-    // Error messages (null = no error)
-    var emailError by remember { mutableStateOf<String?>(null) }
-    var passwordError by remember { mutableStateOf<String?>(null) }
-
     val backgroundColor = Color(0xFFFEF9F0)
     val primaryColor = Color(0xFF0F625C)
     val errorColor = Color(0xFFC62828)
@@ -212,39 +139,6 @@ fun LoginBody(
         errorCursorColor = errorColor,
         errorSupportingTextColor = errorColor
     )
-
-    fun validateAndSubmit() {
-        val trimmedEmail = email.trim()
-
-        emailError = when {
-            trimmedEmail.isEmpty() -> "Email is required."
-            !Patterns.EMAIL_ADDRESS.matcher(trimmedEmail).matches() ->
-                "Enter a valid email address."
-            else -> null
-        }
-
-        passwordError = when {
-            password.isEmpty() -> "Password is required."
-            password.length < 6 -> "Password must be at least 6 characters."
-            else -> null
-        }
-
-        if (emailError == null && passwordError == null && !isLoading) {
-            isLoading = true
-            onSignInClick(
-                trimmedEmail,
-                password,
-                { message ->
-                    // Server rejected it: turn both fields red
-                    isLoading = false
-                    authFailed = true
-                    emailError = " " // keeps the field red without a duplicate message
-                    passwordError = message
-                },
-                { isLoading = false }
-            )
-        }
-    }
 
     Column(
         modifier = Modifier
@@ -300,16 +194,8 @@ fun LoginBody(
         // Email field
         Text(text = "Email address", fontSize = 12.sp, color = Color.DarkGray)
         OutlinedTextField(
-            value = email,
-            onValueChange = {
-                email = it
-                emailError = null
-                // Clear the shared server error too
-                if (authFailed) {
-                    authFailed = false
-                    passwordError = null
-                }
-            },
+            value = state.email,
+            onValueChange = onEmailChange,
             placeholder = { Text("you@example.com", fontSize = 12.sp, color = Color.Gray) },
             textStyle = TextStyle(fontSize = 14.sp),
             modifier = Modifier
@@ -317,11 +203,10 @@ fun LoginBody(
                 .padding(top = 8.dp),
             shape = RoundedCornerShape(10.dp),
             singleLine = true,
-            isError = emailError != null,
+            isError = state.isEmailError,
             supportingText = {
-                val msg = emailError
-                if (!msg.isNullOrBlank()) {
-                    Text(text = msg, fontSize = 12.sp, color = errorColor)
+                state.emailError?.let {
+                    Text(text = it, fontSize = 12.sp, color = errorColor)
                 }
             },
             colors = fieldColors
@@ -329,20 +214,14 @@ fun LoginBody(
 
         Spacer(modifier = Modifier.height(10.dp))
 
+        // Password field
         Text(text = "Password", fontSize = 12.sp, color = Color.DarkGray)
         OutlinedTextField(
-            value = password,
-            onValueChange = {
-                password = it
-                passwordError = null
-                if (authFailed) {
-                    authFailed = false
-                    emailError = null
-                }
-            },
+            value = state.password,
+            onValueChange = onPasswordChange,
             placeholder = { Text("At least 6 characters", fontSize = 12.sp, color = Color.Gray) },
             textStyle = TextStyle(fontSize = 14.sp),
-            visualTransformation = if (passwordVisible) {
+            visualTransformation = if (state.passwordVisible) {
                 VisualTransformation.None
             } else {
                 PasswordVisualTransformation()
@@ -352,16 +231,15 @@ fun LoginBody(
                 .padding(top = 8.dp),
             shape = RoundedCornerShape(10.dp),
             singleLine = true,
-            isError = passwordError != null,
+            isError = state.isPasswordError,
             supportingText = {
-                val msg = passwordError
-                if (!msg.isNullOrBlank()) {
-                    Text(text = msg, fontSize = 12.sp, color = errorColor)
+                (state.passwordError ?: state.authError)?.let {
+                    Text(text = it, fontSize = 12.sp, color = errorColor)
                 }
             },
             trailingIcon = {
-                IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                    if (passwordVisible) {
+                IconButton(onClick = onTogglePasswordVisibility) {
+                    if (state.passwordVisible) {
                         Image(
                             painter = painterResource(id = R.drawable.pwvisible),
                             contentDescription = "Hide password",
@@ -391,22 +269,25 @@ fun LoginBody(
         )
 
         Button(
-            onClick = { validateAndSubmit() },
+            onClick = onSignInClick,
+            enabled = !state.isLoading,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(50.dp)
                 .padding(top = 15.dp),
             shape = RoundedCornerShape(9.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = primaryColor)
+            colors = ButtonDefaults.buttonColors(
+                containerColor = primaryColor,
+                disabledContainerColor = primaryColor.copy(alpha = 0.6f)
+            )
         ) {
             Text(
-                text = if (isLoading) "Signing in..." else "Sign in",
+                text = if (state.isLoading) "Signing in..." else "Sign in",
                 fontSize = 14.sp,
                 color = Color.White,
                 fontWeight = FontWeight.Bold
             )
         }
-
 
         Row(
             modifier = Modifier
@@ -463,7 +344,6 @@ fun LoginBody(
             }
         }
 
-
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -487,6 +367,20 @@ fun LoginBody(
 @Composable
 fun LoginPreview() {
     SplitStayTheme {
-        LoginBody()
+        LoginBody(state = LoginUiState())
+    }
+}
+
+@Preview(showBackground = true, showSystemUi = true)
+@Composable
+fun LoginErrorPreview() {
+    SplitStayTheme {
+        LoginBody(
+            state = LoginUiState(
+                email = "aayush@example.com",
+                password = "wrongpass",
+                authError = "Incorrect email or password."
+            )
+        )
     }
 }

@@ -39,4 +39,21 @@ class AuthRepositoryImpl(
             Result.failure(e)
         }
     }
+
+    override suspend fun signIn(
+        email: String,
+        password: String
+    ): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            auth.signInWith(Email) {
+                this.email = email
+                this.password = password
+            }
+            Result.success(Unit)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 }
