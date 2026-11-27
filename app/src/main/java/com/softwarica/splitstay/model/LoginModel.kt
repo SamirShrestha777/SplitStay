@@ -1,6 +1,6 @@
-package com.softwarica.splitstay.viewmodel.login
+package com.softwarica.splitstay.model
 
-data class LoginUiState(
+data class LoginModel(
     val email: String = "",
     val password: String = "",
     val passwordVisible: Boolean = false,

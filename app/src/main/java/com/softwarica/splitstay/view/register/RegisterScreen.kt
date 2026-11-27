@@ -1,11 +1,10 @@
 package com.softwarica.splitstay.view.register
 
 import android.os.Bundle
+import android.util.Patterns
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.activity.viewModels
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -36,8 +35,11 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
@@ -54,39 +56,27 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.softwarica.splitstay.R
+import com.softwarica.splitstay.model.RegisterModel
 import com.softwarica.splitstay.navigation.AppNavigator
+import com.softwarica.splitstay.repository.AuthRepositoryImpl
+import com.softwarica.splitstay.repository.startGoogleSignIn
 import com.softwarica.splitstay.ui.theme.SplitStayTheme
-import com.softwarica.splitstay.viewmodel.register.RegisterUiState
 import com.softwarica.splitstay.viewmodel.register.RegisterViewModel
-
+import kotlinx.coroutines.launch
+import com.softwarica.splitstay.repository.GoogleOrigin
 class RegisterUIActivity : ComponentActivity() {
-
-    private val viewModel: RegisterViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
             SplitStayTheme {
-                val uiState by viewModel.uiState.collectAsState()
-
-                RegisterBody(
-                    uiState = uiState,
-                    onNameChange = viewModel::onNameChange,
-                    onEmailChange = viewModel::onEmailChange,
-                    onPasswordChange = viewModel::onPasswordChange,
-                    onTogglePasswordVisibility = viewModel::onTogglePasswordVisibility,
-                    onCreateAccountClick = {
-                        viewModel.onRegisterClick { _, email, _ ->
-
-                            AppNavigator.toVerifyEmail(this, email)
-                        }
+                RegisterRoute(
+                    onRegisterSuccess = { _, email, _ ->
+                        AppNavigator.toVerifyEmail(this, email)
                     },
-
-                    onBackClick = { AppNavigator.toWelcome(this, finishCurrent = true) },
-
-                    onSignInClick = { AppNavigator.toLogin(this, finishCurrent = true) },
-                    onGoogleClick = { /* TODO: Google sign-in */ }
+                    onBackClick = { AppNavigator.back(this) },
+                    onSignInClick = { AppNavigator.toLogin(this, finishCurrent = true) }
                 )
             }
         }
@@ -94,8 +84,112 @@ class RegisterUIActivity : ComponentActivity() {
 }
 
 @Composable
+fun RegisterRoute(
+    onRegisterSuccess: (name: String, email: String, password: String) -> Unit,
+    onBackClick: () -> Unit = {},
+    onSignInClick: () -> Unit = {}
+) {
+    val scope = rememberCoroutineScope()
+    val registerViewModel = remember { RegisterViewModel(AuthRepositoryImpl()) }
+
+    var name by remember { mutableStateOf("") }
+    var email by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var passwordVisible by remember { mutableStateOf(false) }
+    var nameError by remember { mutableStateOf<String?>(null) }
+    var emailError by remember { mutableStateOf<String?>(null) }
+    var passwordError by remember { mutableStateOf<String?>(null) }
+    var generalError by remember { mutableStateOf<String?>(null) }
+    var loading by remember { mutableStateOf(false) }
+
+    RegisterBody(
+        uiState = RegisterModel(
+            name = name,
+            email = email,
+            password = password,
+            passwordVisible = passwordVisible,
+            nameError = nameError,
+            emailError = emailError,
+            passwordError = passwordError,
+            generalError = generalError,
+            isLoading = loading
+        ),
+        onNameChange = {
+            name = it
+            nameError = null
+            generalError = null
+        },
+        onEmailChange = {
+            email = it
+            emailError = null
+            generalError = null
+        },
+        onPasswordChange = {
+            password = it
+            passwordError = null
+            generalError = null
+        },
+        onTogglePasswordVisibility = {
+            passwordVisible = !passwordVisible
+        },
+        onCreateAccountClick = {
+            if (!loading) {
+                val trimmedName = name.trim()
+                val trimmedEmail = email.trim()
+
+                nameError = if (trimmedName.isBlank()) "Name is required" else null
+                emailError =
+                    if (!Patterns.EMAIL_ADDRESS.matcher(trimmedEmail).matches())
+                        "Enter a valid email" else null
+                passwordError =
+                    if (password.length < 6)
+                        "Password must be at least 6 characters" else null
+                generalError = null
+
+                if (nameError == null && emailError == null && passwordError == null) {
+                    loading = true
+                    registerViewModel.signUp(trimmedName, trimmedEmail, password) { success, message ->
+                        loading = false
+                        if (success) {
+                            onRegisterSuccess(trimmedName, trimmedEmail, password)
+                        } else {
+                            val msg = message.lowercase()
+                            when {
+                                "already" in msg ->
+                                    emailError = "An account with this email already exists. Try signing in."
+
+                                "invalid" in msg && "email" in msg ->
+                                    emailError = "Enter a valid email address"
+
+                                "rate" in msg || "too many" in msg || "429" in msg ->
+                                    generalError = "Too many attempts. Please wait a few minutes and try again."
+
+                                else ->
+                                    generalError = "Sign up failed. Check your connection and try again."
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        onBackClick = onBackClick,
+        onSignInClick = onSignInClick,
+        onGoogleClick = {
+            if (!loading) {
+                generalError = null
+                scope.launch {
+                    startGoogleSignIn(GoogleOrigin.REGISTER).onFailure {
+                        generalError = "Google sign-in failed. Check your connection and try again."
+                    }
+                }
+            }
+        }
+    )
+}
+
+@Composable
 fun RegisterBody(
-    uiState: RegisterUiState,
+    uiState: RegisterModel,
     onNameChange: (String) -> Unit = {},
     onEmailChange: (String) -> Unit = {},
     onPasswordChange: (String) -> Unit = {},
@@ -385,31 +479,6 @@ private fun FieldError(error: String?, color: Color) {
 @Composable
 fun RegisterPreview() {
     SplitStayTheme {
-        RegisterBody(uiState = RegisterUiState())
+        RegisterBody(uiState = RegisterModel())
     }
-}
-
-@Composable
-fun RegisterRoute(
-    onRegisterSuccess: (name: String, email: String, password: String) -> Unit,
-    onBackClick: () -> Unit = {},
-    onSignInClick: () -> Unit = {},
-    onGoogleClick: () -> Unit = {}
-) {
-    val viewModel: RegisterViewModel = viewModel()
-    val uiState by viewModel.uiState.collectAsState()
-
-    RegisterBody(
-        uiState = uiState,
-        onNameChange = viewModel::onNameChange,
-        onEmailChange = viewModel::onEmailChange,
-        onPasswordChange = viewModel::onPasswordChange,
-        onTogglePasswordVisibility = viewModel::onTogglePasswordVisibility,
-        onCreateAccountClick = {
-            viewModel.onRegisterClick(onRegisterSuccess)
-        },
-        onBackClick = onBackClick,
-        onSignInClick = onSignInClick,
-        onGoogleClick = onGoogleClick
-    )
 }

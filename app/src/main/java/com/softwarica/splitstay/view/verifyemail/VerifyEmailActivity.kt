@@ -19,10 +19,8 @@ class VerifyEmailActivity : ComponentActivity() {
             SplitStayTheme {
                 VerifyEmailRoute(
                     email = email,
-
                     onBackClick = { finish() },
                     onChangeEmailClick = { finish() },
-
                     onVerified = { AppNavigator.toLoginClearingStack(this) }
                 )
             }

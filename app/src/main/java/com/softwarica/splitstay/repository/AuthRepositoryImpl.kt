@@ -3,57 +3,55 @@ package com.softwarica.splitstay.repository
 import io.github.jan.supabase.auth.Auth
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.providers.builtin.Email
-import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.launch
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 
-class EmailAlreadyRegisteredException : Exception("Email already registered")
+class AuthRepositoryImpl : AuthRepository {
 
-class AuthRepositoryImpl(
-    private val auth: Auth = SupabaseClientProvider.client.auth
-) : AuthRepository {
+    val auth : Auth = SupabaseClientProvider.client.auth
 
-    override suspend fun signUp(
+    override fun signUp(
         name: String,
         email: String,
-        password: String
-    ): Result<Unit> = withContext(Dispatchers.IO) {
-        try {
-
-            val user = auth.signUpWith(Email) {
-                this.email = email
-                this.password = password
-                data = buildJsonObject { put("name", name) }
+        password: String,
+        callback: (Boolean, String) -> Unit
+    ) {
+        CoroutineScope(Dispatchers.Main).launch {
+            val result = runCatching {
+                auth.signUpWith(Email) {
+                    this.email = email
+                    this.password = password
+                    data = buildJsonObject { put("name", name) }
+                }
             }
-
-            if (user != null && user.identities?.isEmpty() == true) {
-                return@withContext Result.failure(EmailAlreadyRegisteredException())
+            if(result.isSuccess){
+                callback(true, "Register Successfully")
+            } else {
+                callback(false, "${result.exceptionOrNull()}")
             }
-
-            Result.success(Unit)
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            Result.failure(e)
         }
     }
 
-    override suspend fun signIn(
+    override fun signIn(
         email: String,
-        password: String
-    ): Result<Unit> = withContext(Dispatchers.IO) {
-        try {
-            auth.signInWith(Email) {
-                this.email = email
-                this.password = password
+        password: String,
+        callback: (Boolean, String) -> Unit
+    ) {
+        CoroutineScope(Dispatchers.Main).launch {
+            val result = runCatching {
+                auth.signInWith(Email) {
+                    this.email = email
+                    this.password = password
+                }
             }
-            Result.success(Unit)
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            Result.failure(e)
+            if(result.isSuccess){
+                callback(true, "Login Successfully")
+            } else {
+                callback(false, "${result.exceptionOrNull()}")
+            }
         }
     }
 }

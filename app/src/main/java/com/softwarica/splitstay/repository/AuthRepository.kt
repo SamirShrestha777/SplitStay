@@ -1,7 +1,17 @@
 package com.softwarica.splitstay.repository
 
 interface AuthRepository {
-    suspend fun signUp(name: String, email: String, password: String): Result<Unit>
+    //authentication
+    fun signUp(
+        name: String,
+        email: String,
+        password: String,
+        callback: (Boolean, String) -> Unit
+    )
 
-    suspend fun signIn(email: String, password: String): Result<Unit>
+    fun signIn(
+        email: String,
+        password: String,
+        callback: (Boolean, String) -> Unit
+    )
 }

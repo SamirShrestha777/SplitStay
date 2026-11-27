@@ -1,6 +1,7 @@
 package com.softwarica.splitstay.view.login
 
 import android.os.Bundle
+import android.util.Patterns
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -31,9 +32,11 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -47,13 +50,16 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.softwarica.splitstay.R
+import com.softwarica.splitstay.model.LoginModel
 import com.softwarica.splitstay.navigation.AppNavigator
+import com.softwarica.splitstay.repository.AuthRepositoryImpl
+import com.softwarica.splitstay.repository.startGoogleSignIn
 import com.softwarica.splitstay.ui.theme.SplitStayTheme
 import com.softwarica.splitstay.view.register.AppLogo
-import com.softwarica.splitstay.viewmodel.login.LoginUiState
 import com.softwarica.splitstay.viewmodel.login.LoginViewModel
+import kotlinx.coroutines.launch
+import com.softwarica.splitstay.repository.GoogleOrigin
 
 class LoginUIActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -62,63 +68,124 @@ class LoginUIActivity : ComponentActivity() {
         setContent {
             SplitStayTheme {
                 LoginScreen(
-                    // Back icon -> Welcome
-                    onBackClick = { AppNavigator.toWelcome(this, finishCurrent = true) },
-                    // "Create account" -> Register
+                    onBackClick = { AppNavigator.back(this) },
                     onCreateAccountClick = { AppNavigator.toRegister(this, finishCurrent = true) },
-                    // Login worked
-                    onLoginSuccess = {
-                        // TODO: navigate to your home screen, e.g.
-                        // AppNavigator.toHome(this, finishCurrent = true)
-                    }
+                    onLoginSuccess = { AppNavigator.toHome(this) }
                 )
             }
         }
     }
 }
 
-/**
- * Stateful wrapper: connects the ViewModel to the UI.
- */
 @Composable
 fun LoginScreen(
     onBackClick: () -> Unit,
     onCreateAccountClick: () -> Unit,
-    onLoginSuccess: () -> Unit,
-    viewModel: LoginViewModel = viewModel()
+    onLoginSuccess: () -> Unit
 ) {
-    val state by viewModel.uiState.collectAsState()
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val loginViewModel = remember { LoginViewModel(AuthRepositoryImpl()) }
 
-    LaunchedEffect(state.loginSuccess) {
-        if (state.loginSuccess) {
-            Toast.makeText(context, "Login successful", Toast.LENGTH_SHORT).show()
-            onLoginSuccess()
-            viewModel.onLoginSuccessHandled()
-        }
-    }
+    var email by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var passwordVisible by remember { mutableStateOf(false) }
+    var emailError by remember { mutableStateOf<String?>(null) }
+    var passwordError by remember { mutableStateOf<String?>(null) }
+    var authError by remember { mutableStateOf<String?>(null) }
+    var loading by remember { mutableStateOf(false) }
 
     LoginBody(
-        state = state,
-        onEmailChange = viewModel::onEmailChange,
-        onPasswordChange = viewModel::onPasswordChange,
-        onTogglePasswordVisibility = viewModel::onTogglePasswordVisibility,
-        onSignInClick = viewModel::onSignInClick,
+        state = LoginModel(
+            email = email,
+            password = password,
+            passwordVisible = passwordVisible,
+            emailError = emailError,
+            passwordError = passwordError,
+            authError = authError,
+            isLoading = loading
+        ),
+        onEmailChange = {
+            email = it
+            emailError = null
+            authError = null
+        },
+        onPasswordChange = {
+            password = it
+            passwordError = null
+            authError = null
+        },
+        onTogglePasswordVisibility = { passwordVisible = !passwordVisible },
+        onSignInClick = {
+            if (!loading) {
+                val trimmedEmail = email.trim()
+
+                emailError = validateEmail(trimmedEmail)
+                passwordError = validatePassword(password)
+                authError = null
+
+                if (emailError == null && passwordError == null) {
+                    loading = true
+                    loginViewModel.signIn(trimmedEmail, password) { success, message ->
+                        loading = false
+                        if (success) {
+                            Toast.makeText(context, "Login successful", Toast.LENGTH_SHORT).show()
+                            onLoginSuccess()
+                        } else {
+                            authError = friendlyMessage(message)
+                        }
+                    }
+                }
+            }
+        },
+        onGoogleClick = {
+            if (!loading) {
+                authError = null
+                scope.launch {
+                    startGoogleSignIn(GoogleOrigin.LOGIN).onFailure {
+                        authError = "Google sign-in failed. Check your connection and try again."
+                    }
+                }
+            }
+        },
         onBackClick = onBackClick,
         onCreateAccountClick = onCreateAccountClick
     )
 }
 
-/**
- * Stateless UI: draws whatever LoginUiState says. No logic in here.
- */
+private fun validateEmail(email: String): String? = when {
+    email.isEmpty() -> "Email is required."
+    !Patterns.EMAIL_ADDRESS.matcher(email).matches() -> "Enter a valid email address."
+    else -> null
+}
+
+private fun validatePassword(password: String): String? = when {
+    password.isEmpty() -> "Password is required."
+    password.length < 6 -> "Password must be at least 6 characters."
+    else -> null
+}
+
+private fun friendlyMessage(message: String): String {
+    val msg = message.lowercase()
+    return when {
+        "unable to resolve host" in msg || "timeout" in msg ||
+                "failed to connect" in msg || "network" in msg ||
+                "unknownhost" in msg || "unresolvedaddress" in msg ->
+            "Can't reach the server. Check your internet connection."
+        "email not confirmed" in msg || "email_not_confirmed" in msg ->
+            "Please confirm your email first."
+        else -> "Incorrect email or password."
+    }
+}
+
 @Composable
 fun LoginBody(
-    state: LoginUiState,
+    state: LoginModel,
     onEmailChange: (String) -> Unit = {},
     onPasswordChange: (String) -> Unit = {},
     onTogglePasswordVisibility: () -> Unit = {},
     onSignInClick: () -> Unit = {},
+    onGoogleClick: () -> Unit = {},
     onBackClick: () -> Unit = {},
     onCreateAccountClick: () -> Unit = {}
 ) {
@@ -191,7 +258,6 @@ fun LoginBody(
 
         Spacer(modifier = Modifier.height(25.dp))
 
-        // Email field
         Text(text = "Email address", fontSize = 12.sp, color = Color.DarkGray)
         OutlinedTextField(
             value = state.email,
@@ -214,7 +280,6 @@ fun LoginBody(
 
         Spacer(modifier = Modifier.height(10.dp))
 
-        // Password field
         Text(text = "Password", fontSize = 12.sp, color = Color.DarkGray)
         OutlinedTextField(
             value = state.password,
@@ -239,19 +304,13 @@ fun LoginBody(
             },
             trailingIcon = {
                 IconButton(onClick = onTogglePasswordVisibility) {
-                    if (state.passwordVisible) {
-                        Image(
-                            painter = painterResource(id = R.drawable.pwvisible),
-                            contentDescription = "Hide password",
-                            modifier = Modifier.size(20.dp)
-                        )
-                    } else {
-                        Image(
-                            painter = painterResource(id = R.drawable.pwhide),
-                            contentDescription = "Show password",
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
+                    Image(
+                        painter = painterResource(
+                            id = if (state.passwordVisible) R.drawable.pwvisible else R.drawable.pwhide
+                        ),
+                        contentDescription = if (state.passwordVisible) "Hide password" else "Show password",
+                        modifier = Modifier.size(20.dp)
+                    )
                 }
             },
             colors = fieldColors
@@ -315,8 +374,8 @@ fun LoginBody(
             )
         }
 
-        // Google button (UI only)
         Card(
+            onClick = onGoogleClick,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(48.dp)
@@ -366,9 +425,7 @@ fun LoginBody(
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
 fun LoginPreview() {
-    SplitStayTheme {
-        LoginBody(state = LoginUiState())
-    }
+    SplitStayTheme { LoginBody(state = LoginModel()) }
 }
 
 @Preview(showBackground = true, showSystemUi = true)
@@ -376,7 +433,7 @@ fun LoginPreview() {
 fun LoginErrorPreview() {
     SplitStayTheme {
         LoginBody(
-            state = LoginUiState(
+            state = LoginModel(
                 email = "aayush@example.com",
                 password = "wrongpass",
                 authError = "Incorrect email or password."
