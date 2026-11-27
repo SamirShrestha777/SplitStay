@@ -5,4 +5,6 @@
     <string name="title_activity_welcome_uiactivity">WelcomeUIActivity</string>
     <string name="title_activity_app_navigator">AppNavigator</string>
     <string name="title_activity_auth_callback">AuthCallbackActivity</string>
+    <string name="title_activity_forgot_password_screen">ForgotPasswordScreen</string>
+    <string name="title_activity_forgot_password">ForgotPasswordActivity</string>
 </resources>

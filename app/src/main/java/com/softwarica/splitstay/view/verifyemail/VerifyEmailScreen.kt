@@ -50,10 +50,12 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.softwarica.splitstay.model.VerifyEmailModel
 import com.softwarica.splitstay.repository.VerifyEmailRepositoryImpl
+import com.softwarica.splitstay.ui.theme.SplitStayTheme
 import com.softwarica.splitstay.viewmodel.verifyemail.VerifyEmailViewModel
 import kotlinx.coroutines.delay
 import kotlin.time.Duration.Companion.seconds
@@ -76,7 +78,7 @@ fun VerifyEmailRoute(
     var resendSecondsLeft by remember { mutableStateOf(60) }
     var cooldownKey by remember { mutableStateOf(0) }
 
-    // 60 second countdown, restarts every time cooldownKey changes
+
     LaunchedEffect(cooldownKey) {
         resendSecondsLeft = 60
         while (resendSecondsLeft > 0) {
@@ -85,7 +87,7 @@ fun VerifyEmailRoute(
         }
     }
 
-    // hide "Code sent again." after 3 seconds
+
     LaunchedEffect(resendMessage) {
         if (resendMessage != null) {
             delay(3.seconds)
@@ -140,6 +142,9 @@ fun VerifyEmailRoute(
 @Composable
 fun VerifyEmailScreen(
     uiState: VerifyEmailModel,
+    eyebrow: String = "ALMOST THERE",
+    title: String = "Verify your email",
+    buttonText: String = "Verify email",
     onCodeChange: (String) -> Unit = {},
     onVerifyClick: () -> Unit = {},
     onResendClick: () -> Unit = {},
@@ -195,7 +200,7 @@ fun VerifyEmailScreen(
         Spacer(modifier = Modifier.height(24.dp))
 
         Text(
-            text = "ALMOST THERE",
+            text = eyebrow,
             color = PrimaryGreen,
             fontSize = 12.sp,
             fontWeight = FontWeight.Bold,
@@ -206,7 +211,7 @@ fun VerifyEmailScreen(
         Spacer(modifier = Modifier.height(8.dp))
 
         Text(
-            text = "Verify your email",
+            text = title,
             color = TitleColor,
             fontSize = 28.sp,
             fontWeight = FontWeight.Bold,
@@ -288,7 +293,7 @@ fun VerifyEmailScreen(
                 )
             } else {
                 Text(
-                    text = "Verify email",
+                    text = buttonText,
                     fontSize = 17.sp,
                     fontWeight = FontWeight.Bold,
                     fontFamily = AppFont
@@ -402,6 +407,20 @@ private fun CodeInputRow(
             modifier = Modifier
                 .matchParentSize()
                 .focusRequester(focusRequester)
+        )
+    }
+}
+
+@Preview(showBackground = true, showSystemUi = true, name = "Sign-up verify")
+@Composable
+private fun VerifyEmailPreview() {
+    SplitStayTheme {
+        VerifyEmailScreen(
+            uiState = VerifyEmailModel(
+                email = "aayush@example.com",
+                code = "123",
+                resendSecondsLeft = 42
+            )
         )
     }
 }

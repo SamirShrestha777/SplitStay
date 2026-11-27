@@ -54,12 +54,12 @@ import com.softwarica.splitstay.R
 import com.softwarica.splitstay.model.LoginModel
 import com.softwarica.splitstay.navigation.AppNavigator
 import com.softwarica.splitstay.repository.AuthRepositoryImpl
+import com.softwarica.splitstay.repository.GoogleOrigin
 import com.softwarica.splitstay.repository.startGoogleSignIn
 import com.softwarica.splitstay.ui.theme.SplitStayTheme
 import com.softwarica.splitstay.view.register.AppLogo
 import com.softwarica.splitstay.viewmodel.login.LoginViewModel
 import kotlinx.coroutines.launch
-import com.softwarica.splitstay.repository.GoogleOrigin
 
 class LoginUIActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -70,6 +70,7 @@ class LoginUIActivity : ComponentActivity() {
                 LoginScreen(
                     onBackClick = { AppNavigator.back(this) },
                     onCreateAccountClick = { AppNavigator.toRegister(this, finishCurrent = true) },
+                    onForgotPasswordClick = { AppNavigator.toForgotPassword(this) },
                     onLoginSuccess = { AppNavigator.toHome(this) }
                 )
             }
@@ -81,6 +82,7 @@ class LoginUIActivity : ComponentActivity() {
 fun LoginScreen(
     onBackClick: () -> Unit,
     onCreateAccountClick: () -> Unit,
+    onForgotPasswordClick: () -> Unit,
     onLoginSuccess: () -> Unit
 ) {
     val context = LocalContext.current
@@ -148,6 +150,7 @@ fun LoginScreen(
                 }
             }
         },
+        onForgotPasswordClick = { if (!loading) onForgotPasswordClick() },
         onBackClick = onBackClick,
         onCreateAccountClick = onCreateAccountClick
     )
@@ -186,6 +189,7 @@ fun LoginBody(
     onTogglePasswordVisibility: () -> Unit = {},
     onSignInClick: () -> Unit = {},
     onGoogleClick: () -> Unit = {},
+    onForgotPasswordClick: () -> Unit = {},
     onBackClick: () -> Unit = {},
     onCreateAccountClick: () -> Unit = {}
 ) {
@@ -324,7 +328,8 @@ fun LoginBody(
             textAlign = TextAlign.End,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = 4.dp)
+                .clickable { onForgotPasswordClick() }
+                .padding(top = 8.dp, bottom = 4.dp)
         )
 
         Button(

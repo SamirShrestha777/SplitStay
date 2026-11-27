@@ -1,3 +1,4 @@
+
 package com.softwarica.splitstay.repository
 
 import io.github.jan.supabase.auth.Auth
@@ -5,14 +6,15 @@ import io.github.jan.supabase.auth.OtpType
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.exceptions.HttpRequestException
 import io.ktor.client.plugins.HttpRequestTimeoutException
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import java.net.UnknownHostException
+import java.io.IOException
 
 class VerifyEmailRepositoryImpl : VerifyEmailRepository {
 
-    val auth : Auth = SupabaseClientProvider.client.auth
+    private val auth: Auth = SupabaseClientProvider.client.auth
 
     override fun verifyCode(
         email: String,
@@ -20,17 +22,19 @@ class VerifyEmailRepositoryImpl : VerifyEmailRepository {
         callback: (Boolean, String) -> Unit
     ) {
         CoroutineScope(Dispatchers.Main).launch {
-            val result = runCatching {
+            try {
                 auth.verifyEmailOtp(
                     type = OtpType.Email.SIGNUP,
-                    email = email,
-                    token = code
+                    email = email.trim().lowercase(),
+                    token = code.trim()
                 )
-            }
-            if(result.isSuccess){
-                callback(true, "Email Verified Successfully")
-            } else {
-                callback(false, friendlyMessage(result.exceptionOrNull()))
+
+                callback(true, "Email verified successfully.")
+
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                callback(false, friendlyMessage(e))
             }
         }
     }
@@ -40,36 +44,43 @@ class VerifyEmailRepositoryImpl : VerifyEmailRepository {
         callback: (Boolean, String) -> Unit
     ) {
         CoroutineScope(Dispatchers.Main).launch {
-            val result = runCatching {
+            try {
                 auth.resendEmail(
                     type = OtpType.Email.SIGNUP,
-                    email = email
+                    email = email.trim().lowercase()
                 )
-            }
-            if(result.isSuccess){
-                callback(true, "Code sent to $email")
-            } else {
-                callback(false, friendlyMessage(result.exceptionOrNull()))
+
+                callback(true, "A new verification code has been requested.")
+
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                callback(false, friendlyMessage(e))
             }
         }
     }
 
-    // turns an error into a short message the user can read
-    private fun friendlyMessage(e: Throwable?): String {
-        val msg = e?.message.orEmpty().lowercase()
+    private fun friendlyMessage(e: Throwable): String {
+        val message = e.message.orEmpty().lowercase()
+
         return when {
             e is HttpRequestException ||
                     e is HttpRequestTimeoutException ||
-                    e is UnknownHostException ||
-                    e?.cause is UnknownHostException -> "No internet connection."
+                    e is IOException ->
+                "Network error. Check your internet connection."
 
-            "rate" in msg || "too many" in msg || "429" in msg ->
-                "Too many attempts. Please wait a moment."
+            "429" in message ||
+                    "rate" in message ||
+                    "too many" in message ->
+                "Too many attempts. Please wait before trying again."
 
-            "otp" in msg || "token" in msg || "expired" in msg || "invalid" in msg ->
-                "That code is incorrect or has expired."
+            "expired" in message ||
+                    "invalid" in message ||
+                    "otp" in message ||
+                    "token" in message ->
+                "The verification code is invalid or has expired."
 
-            else -> "Something went wrong. Try again."
+            else -> e.message ?: "Unable to verify your email. Please try again."
         }
     }
 }

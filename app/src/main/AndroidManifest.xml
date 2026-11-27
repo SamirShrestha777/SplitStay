@@ -22,30 +22,27 @@
             android:theme="@style/Theme.SplitStay">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
+
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-
         <activity
             android:name=".view.login.LoginUIActivity"
             android:exported="false"
             android:label="@string/title_activity_login_uiactivity"
             android:theme="@style/Theme.SplitStay"
             android:windowSoftInputMode="adjustResize" />
-
         <activity
             android:name=".view.register.RegisterUIActivity"
             android:exported="false"
             android:label="RegisterUIActivity"
             android:theme="@style/Theme.SplitStay"
             android:windowSoftInputMode="adjustResize" />
-
         <activity
             android:name=".view.verifyemail.VerifyEmailActivity"
             android:exported="false"
             android:theme="@style/Theme.SplitStay"
             android:windowSoftInputMode="adjustResize" />
-
         <activity
             android:name=".MainActivity"
             android:exported="false"
@@ -62,13 +59,21 @@
             android:theme="@android:style/Theme.Translucent.NoTitleBar">
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
+
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
+
                 <data
                     android:host="login"
                     android:scheme="splitstay" />
             </intent-filter>
         </activity>
-
+        <activity
+            android:name=".view.forgotpassword.ForgotPasswordActivity"
+            android:exported="false"
+            android:label="Forgot Password"
+            android:theme="@style/Theme.SplitStay"
+            android:windowSoftInputMode="adjustResize" />
     </application>
+
 </manifest>

@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import com.softwarica.splitstay.MainActivity
+import com.softwarica.splitstay.view.forgotpassword.ForgotPasswordActivity
 import com.softwarica.splitstay.view.login.LoginUIActivity
 import com.softwarica.splitstay.view.login.WelcomeUIActivity
 import com.softwarica.splitstay.view.register.RegisterUIActivity
@@ -27,6 +28,10 @@ object AppNavigator {
     fun toRegister(context: Context, finishCurrent: Boolean = false) {
         context.startActivity(Intent(context, RegisterUIActivity::class.java))
         finishIfNeeded(context, finishCurrent)
+    }
+
+    fun toForgotPassword(context: Context) {
+        context.startActivity(Intent(context, ForgotPasswordActivity::class.java))
     }
 
     fun toVerifyEmail(context: Context, email: String, finishCurrent: Boolean = false) {
@@ -58,7 +63,6 @@ object AppNavigator {
         }
         context.startActivity(intent)
     }
-
 
     fun back(activity: Activity) {
         if (activity.isTaskRoot) {

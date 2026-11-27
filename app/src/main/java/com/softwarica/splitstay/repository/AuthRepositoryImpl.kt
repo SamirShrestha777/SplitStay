@@ -3,6 +3,7 @@ package com.softwarica.splitstay.repository
 import io.github.jan.supabase.auth.Auth
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.providers.builtin.Email
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -11,7 +12,7 @@ import kotlinx.serialization.json.put
 
 class AuthRepositoryImpl : AuthRepository {
 
-    val auth : Auth = SupabaseClientProvider.client.auth
+    private val auth: Auth = SupabaseClientProvider.client.auth
 
     override fun signUp(
         name: String,
@@ -20,17 +21,34 @@ class AuthRepositoryImpl : AuthRepository {
         callback: (Boolean, String) -> Unit
     ) {
         CoroutineScope(Dispatchers.Main).launch {
-            val result = runCatching {
-                auth.signUpWith(Email) {
-                    this.email = email
+            try {
+                val user = auth.signUpWith(Email) {
+                    this.email = email.trim().lowercase()
                     this.password = password
-                    data = buildJsonObject { put("name", name) }
+                    data = buildJsonObject {
+                        put("name", name.trim())
+                    }
                 }
-            }
-            if(result.isSuccess){
-                callback(true, "Register Successfully")
-            } else {
-                callback(false, "${result.exceptionOrNull()}")
+
+                if (user != null && user.identities.isNullOrEmpty()) {
+                    callback(
+                        false,
+                        "An account with this email already exists."
+                    )
+                } else {
+                    callback(
+                        true,
+                        "Verification request submitted. Check your email for the OTP."
+                    )
+                }
+
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                callback(
+                    false,
+                    e.message ?: "Registration failed. Please try again."
+                )
             }
         }
     }
@@ -41,16 +59,21 @@ class AuthRepositoryImpl : AuthRepository {
         callback: (Boolean, String) -> Unit
     ) {
         CoroutineScope(Dispatchers.Main).launch {
-            val result = runCatching {
+            try {
                 auth.signInWith(Email) {
-                    this.email = email
+                    this.email = email.trim().lowercase()
                     this.password = password
                 }
-            }
-            if(result.isSuccess){
-                callback(true, "Login Successfully")
-            } else {
-                callback(false, "${result.exceptionOrNull()}")
+
+                callback(true, "Login successful.")
+
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                callback(
+                    false,
+                    e.message ?: "Login failed. Please check your details."
+                )
             }
         }
     }

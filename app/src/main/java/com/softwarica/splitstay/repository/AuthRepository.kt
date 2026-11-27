@@ -1,7 +1,8 @@
+
 package com.softwarica.splitstay.repository
 
 interface AuthRepository {
-    //authentication
+
     fun signUp(
         name: String,
         email: String,
