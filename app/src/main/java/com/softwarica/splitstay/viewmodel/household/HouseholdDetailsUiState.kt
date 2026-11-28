@@ -9,5 +9,12 @@ data class HouseholdDetailsUiState(
     val isLoading: Boolean = true,
     val errorMessage: String? = null,
     val household: HouseholdDetails? = null,
-    val isAdmin: Boolean = false
+    val isAdmin: Boolean = false,
+
+    // ── Delete household state ──────────────────────────────────────────────
+    val showDeleteDialog: Boolean = false,
+    val confirmText: String = "",
+    val isDeleting: Boolean = false,
+    val deleteError: String? = null,
+    val isDeleted: Boolean = false
 )

@@ -131,6 +131,50 @@ class HouseholdDetailsRepository {
      */
     fun currentUserId(): String? = client.auth.currentUserOrNull()?.id
 
+    /**
+     * Deletes a household (admin only). After deletion, verifies the row is gone
+     * so that an RLS silent no-op is detected.
+     */
+    suspend fun deleteHousehold(householdId: String): Result<Unit> =
+        withContext(Dispatchers.IO) {
+            try {
+                val currentUserId = client.auth.currentUserOrNull()?.id
+                    ?: return@withContext Result.failure(HouseholdDetailsError.NotAllowed)
+
+                // Delete the household row (RLS should enforce admin_id = auth.uid())
+                client.postgrest["households"].delete {
+                    filter {
+                        eq("id", householdId)
+                        eq("admin_id", currentUserId)
+                    }
+                }
+
+                // Verify the row was actually deleted (RLS can silently delete 0 rows)
+                val stillExists = client.postgrest["households"]
+                    .select(columns = Columns.raw("id")) {
+                        filter { eq("id", householdId) }
+                        limit(1)
+                    }
+                    .decodeSingleOrNull<IdOnly>()
+
+                if (stillExists != null) {
+                    return@withContext Result.failure(HouseholdDetailsError.NotAllowed)
+                }
+
+                Result.success(Unit)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Result.failure(mapError(e))
+            }
+        }
+
+    /**
+     * Minimal row shape used only for existence checks.
+     */
+    @Serializable
+    private data class IdOnly(val id: String = "")
+
     // ── Error mapping ──────────────────────────────────────────────────────────
 
     private fun mapError(e: Exception): HouseholdDetailsError {

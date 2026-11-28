@@ -23,9 +23,11 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -54,13 +56,21 @@ import com.softwarica.splitstay.viewmodel.household.HouseholdDetailsViewModel
 fun HouseholdDetailsRoute(
     householdId: String,
     onBackClick: () -> Unit = {},
-    onEditClick: (String) -> Unit = {}
+    onEditClick: (String) -> Unit = {},
+    onHouseholdDeleted: () -> Unit = {}
 ) {
     val viewModel: HouseholdDetailsViewModel = viewModel(
         factory = HouseholdDetailsViewModel.Factory(householdId)
     )
 
     val uiState by viewModel.uiState.collectAsState()
+
+    // Navigate to home when household is successfully deleted
+    LaunchedEffect(uiState.isDeleted) {
+        if (uiState.isDeleted) {
+            onHouseholdDeleted()
+        }
+    }
 
     // Refresh every time the screen comes back into view (skip initial resume since ViewModel.init loads)
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -85,7 +95,11 @@ fun HouseholdDetailsRoute(
         uiState = uiState,
         onBackClick = onBackClick,
         onEditClick = { onEditClick(householdId) },
-        onRetryClick = { viewModel.refresh() }
+        onRetryClick = { viewModel.refresh() },
+        onDeleteClick = viewModel::onDeleteClick,
+        onConfirmTextChange = viewModel::onConfirmTextChange,
+        onConfirmDelete = viewModel::onConfirmDelete,
+        onDismissDeleteDialog = viewModel::onDismissDialog
     )
 }
 
@@ -96,8 +110,25 @@ fun HouseholdDetailsScreen(
     uiState: HouseholdDetailsUiState,
     onBackClick: () -> Unit = {},
     onEditClick: () -> Unit = {},
-    onRetryClick: () -> Unit = {}
+    onRetryClick: () -> Unit = {},
+    onDeleteClick: () -> Unit = {},
+    onConfirmTextChange: (String) -> Unit = {},
+    onConfirmDelete: () -> Unit = {},
+    onDismissDeleteDialog: () -> Unit = {}
 ) {
+    // ── Delete confirmation dialog ───────────────────────────────────────────
+    if (uiState.showDeleteDialog && uiState.household != null) {
+        DeleteHouseholdDialog(
+            householdName = uiState.household.name,
+            confirmText = uiState.confirmText,
+            isDeleting = uiState.isDeleting,
+            deleteError = uiState.deleteError,
+            onConfirmTextChange = onConfirmTextChange,
+            onConfirmDelete = onConfirmDelete,
+            onDismiss = onDismissDeleteDialog
+        )
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -207,7 +238,8 @@ fun HouseholdDetailsScreen(
             else -> {
                 HouseholdDetailsContent(
                     household = uiState.household,
-                    isAdmin = uiState.isAdmin
+                    isAdmin = uiState.isAdmin,
+                    onDeleteClick = onDeleteClick
                 )
             }
         }
@@ -219,7 +251,8 @@ fun HouseholdDetailsScreen(
 @Composable
 private fun HouseholdDetailsContent(
     household: HouseholdDetails,
-    isAdmin: Boolean
+    isAdmin: Boolean,
+    onDeleteClick: () -> Unit = {}
 ) {
     Column(
         modifier = Modifier
@@ -339,6 +372,37 @@ private fun HouseholdDetailsContent(
         }
 
         Spacer(modifier = Modifier.height(32.dp))
+
+        // ── Danger zone (admin only) ─────────────────────────────────────────
+        if (isAdmin) {
+            Text(
+                text = "DANGER ZONE",
+                color = ErrorRed,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 2.sp
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            OutlinedButton(
+                onClick = onDeleteClick,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(54.dp),
+                shape = RoundedCornerShape(16.dp),
+                border = androidx.compose.foundation.BorderStroke(1.dp, ErrorRed)
+            ) {
+                Text(
+                    text = "Delete household",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = ErrorRed
+                )
+            }
+
+            Spacer(modifier = Modifier.height(32.dp))
+        }
     }
 }
 

@@ -26,6 +26,9 @@ class HouseholdDetailsActivity : ComponentActivity() {
                     onBackClick = { finish() },
                     onEditClick = { id ->
                         AppNavigator.toEditHousehold(this, id)
+                    },
+                    onHouseholdDeleted = {
+                        AppNavigator.toHome(this)
                     }
                 )
             }
