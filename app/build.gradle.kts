@@ -61,6 +61,8 @@ dependencies {
     implementation(libs.supabase.auth)
     implementation(libs.supabase.postgrest)
     implementation(libs.ktor.client.android)
+    implementation("io.github.jan-tennert.supabase:postgrest-kt")
+    implementation("androidx.compose.material:material-icons-core")
 
     testImplementation(libs.junit)
     androidTestImplementation(platform(libs.androidx.compose.bom))

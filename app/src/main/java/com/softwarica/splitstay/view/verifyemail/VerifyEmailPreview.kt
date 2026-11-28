@@ -2,13 +2,13 @@ package com.softwarica.splitstay.view.verifyemail
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
-import com.softwarica.splitstay.viewmodel.verifyemail.VerifyEmailUiState
+import com.softwarica.splitstay.model.VerifyEmailModel
 
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
 private fun VerifyEmailEmptyPreview() {
     VerifyEmailScreen(
-        uiState = VerifyEmailUiState(
+        uiState = VerifyEmailModel(
             email = "aayush@example.com",
             resendSecondsLeft = 58
         )
@@ -19,7 +19,7 @@ private fun VerifyEmailEmptyPreview() {
 @Composable
 private fun VerifyEmailFilledPreview() {
     VerifyEmailScreen(
-        uiState = VerifyEmailUiState(
+        uiState = VerifyEmailModel(
             email = "aayush@example.com",
             code = "482915",
             resendSecondsLeft = 0
@@ -31,7 +31,7 @@ private fun VerifyEmailFilledPreview() {
 @Composable
 private fun VerifyEmailErrorPreview() {
     VerifyEmailScreen(
-        uiState = VerifyEmailUiState(
+        uiState = VerifyEmailModel(
             email = "aayush@example.com",
             code = "123456",
             errorMessage = "That code is incorrect or has expired.",
@@ -44,7 +44,7 @@ private fun VerifyEmailErrorPreview() {
 @Composable
 private fun VerifyEmailCountdownPreview() {
     VerifyEmailScreen(
-        uiState = VerifyEmailUiState(
+        uiState = VerifyEmailModel(
             email = "aayush@example.com",
             code = "48",
             resendSecondsLeft = 42

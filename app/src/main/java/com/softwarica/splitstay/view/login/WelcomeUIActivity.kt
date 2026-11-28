@@ -1,12 +1,14 @@
 package com.softwarica.splitstay.view.login
 
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -32,21 +34,34 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.lifecycleScope
 import com.softwarica.splitstay.R
 import com.softwarica.splitstay.navigation.AppNavigator
+import com.softwarica.splitstay.repository.startGoogleSignIn
 import com.softwarica.splitstay.ui.theme.SplitStayTheme
 import com.softwarica.splitstay.view.register.AppLogo
+import kotlinx.coroutines.launch
 
 class WelcomeUIActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-
         setContent {
             SplitStayTheme {
                 WelcomeBody(
                     onGetStartedClick = { AppNavigator.toRegister(this) },
-                    onSignInClick = { AppNavigator.toLogin(this) }
+                    onSignInClick = { AppNavigator.toLogin(this) },
+                    onGoogleClick = {
+                        lifecycleScope.launch {
+                            startGoogleSignIn().onFailure {
+                                Toast.makeText(
+                                    this@WelcomeUIActivity,
+                                    "Google sign-in failed. Check your connection and try again.",
+                                    Toast.LENGTH_LONG
+                                ).show()
+                            }
+                        }
+                    }
                 )
             }
         }
@@ -56,7 +71,8 @@ class WelcomeUIActivity : ComponentActivity() {
 @Composable
 fun WelcomeBody(
     onGetStartedClick: () -> Unit = {},
-    onSignInClick: () -> Unit = {}
+    onSignInClick: () -> Unit = {},
+    onGoogleClick: () -> Unit = {}
 ) {
     val backgroundColor = Color(0xFFFEF9F0)
     val primaryColor = Color(0xFF0F625C)
@@ -107,16 +123,13 @@ fun WelcomeBody(
 
         Spacer(modifier = Modifier.height(45.dp))
 
-        // Get started -> Register screen
         Button(
             onClick = onGetStartedClick,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(48.dp),
             shape = RoundedCornerShape(9.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = primaryColor
-            )
+            colors = ButtonDefaults.buttonColors(containerColor = primaryColor)
         ) {
             Text(
                 text = "Get started",
@@ -126,7 +139,6 @@ fun WelcomeBody(
             )
         }
 
-        // Sign in -> Login screen
         Button(
             onClick = onSignInClick,
             modifier = Modifier
@@ -134,12 +146,8 @@ fun WelcomeBody(
                 .height(48.dp)
                 .padding(top = 6.dp),
             shape = RoundedCornerShape(9.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = backgroundColor
-            ),
-            border = BorderStroke(
-                1.dp, primaryColor
-            )
+            colors = ButtonDefaults.buttonColors(containerColor = backgroundColor),
+            border = BorderStroke(1.dp, primaryColor)
         ) {
             Text(
                 text = "Sign in",
@@ -153,7 +161,8 @@ fun WelcomeBody(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(48.dp)
-                .padding(top = 6.dp),
+                .padding(top = 6.dp)
+                .clickable { onGoogleClick() },
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -162,7 +171,6 @@ fun WelcomeBody(
                 contentDescription = "Google logo",
                 modifier = Modifier.size(18.dp)
             )
-
             Text(
                 text = "Continue with Google",
                 fontSize = 12.sp,
@@ -186,7 +194,5 @@ fun WelcomeBody(
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
 fun WelcomePreview() {
-    SplitStayTheme {
-        WelcomeBody()
-    }
+    SplitStayTheme { WelcomeBody() }
 }
