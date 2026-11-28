@@ -1,6 +1,6 @@
-package com.softwarica.splitstay.viewmodel.register
+package com.softwarica.splitstay.model
 
-data class RegisterUiState(
+data class RegisterModel(
     val name: String = "",
     val email: String = "",
     val password: String = "",

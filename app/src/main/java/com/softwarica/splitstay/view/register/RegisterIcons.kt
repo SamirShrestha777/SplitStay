@@ -23,11 +23,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.softwarica.splitstay.R
 
-// ── ImageVector icons ──────────────────────────────────────────────────────────
 
-/**
- * Back arrow icon (←) built purely in Kotlin.
- */
 val BackArrowIcon: ImageVector by lazy {
     ImageVector.Builder(
         name = "BackArrow",
@@ -58,9 +54,7 @@ val BackArrowIcon: ImageVector by lazy {
     }.build()
 }
 
-/**
- * Eye (visibility on) icon built purely in Kotlin.
- */
+
 val EyeIcon: ImageVector by lazy {
     ImageVector.Builder(
         name = "Eye",
@@ -101,9 +95,7 @@ val EyeIcon: ImageVector by lazy {
     }.build()
 }
 
-/**
- * Eye-off (visibility off) icon built purely in Kotlin.
- */
+
 val EyeOffIcon: ImageVector by lazy {
     ImageVector.Builder(
         name = "EyeOff",
@@ -159,12 +151,7 @@ val EyeOffIcon: ImageVector by lazy {
     }.build()
 }
 
-// ── Canvas composable icons ────────────────────────────────────────────────────
 
-/**
- * SplitStay app logo: house with a leaf/coin motif, drawn with Compose Canvas.
- * Matches the rounded-square green house icon in the design.
- */
 @Composable
 fun AppLogo(size: Dp = 40.dp) {
     Canvas(modifier = Modifier.size(size)) {
@@ -240,9 +227,7 @@ private fun DrawScope.drawAppLogo() {
     )
 }
 
-/**
- * Google icon displayed from drawable resource (search.png).
- */
+
 @Composable
 fun GoogleIcon(size: Dp = 20.dp) {
     Image(

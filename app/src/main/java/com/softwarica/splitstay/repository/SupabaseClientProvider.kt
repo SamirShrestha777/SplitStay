@@ -16,7 +16,10 @@ object SupabaseClientProvider {
             supabaseUrl = SupabaseConfig.SUPABASE_URL,
             supabaseKey = SupabaseConfig.SUPABASE_ANON_KEY
         ) {
-            install(Auth)
+            install(Auth) {
+                scheme = "splitstay"
+                host = "login"
+            }
             install(Postgrest)
         }
     }

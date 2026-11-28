@@ -1,9 +1,7 @@
-package com.softwarica.splitstay.viewmodel.verifyemail
+package com.softwarica.splitstay.model
 
-/**
- * UI state for the Verify Email screen.
- */
-data class VerifyEmailUiState(
+
+data class VerifyEmailModel(
     val email: String = "",
     val code: String = "",
     val isVerifying: Boolean = false,

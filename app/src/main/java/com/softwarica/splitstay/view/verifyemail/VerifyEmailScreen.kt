@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -31,9 +30,10 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -42,6 +42,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -49,18 +50,17 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.ViewModelProvider
-import androidx.lifecycle.viewmodel.compose.viewModel
-import com.softwarica.splitstay.repository.VerifyEmailRepository
-import com.softwarica.splitstay.viewmodel.verifyemail.VerifyEmailUiState
+import com.softwarica.splitstay.model.VerifyEmailModel
+import com.softwarica.splitstay.repository.VerifyEmailRepositoryImpl
+import com.softwarica.splitstay.ui.theme.SplitStayTheme
 import com.softwarica.splitstay.viewmodel.verifyemail.VerifyEmailViewModel
+import kotlinx.coroutines.delay
+import kotlin.time.Duration.Companion.seconds
 
-// ── Font (same as RegisterScreen) ──────────────────────────────────────────────
 private val AppFont: FontFamily = FontFamily.Default
-
-// ── Route (stateful wrapper) ───────────────────────────────────────────────────
 
 @Composable
 fun VerifyEmailRoute(
@@ -69,54 +69,91 @@ fun VerifyEmailRoute(
     onChangeEmailClick: () -> Unit = {},
     onVerified: () -> Unit = {}
 ) {
-    val viewModel: VerifyEmailViewModel = viewModel(
-        factory = object : ViewModelProvider.Factory {
-            @Suppress("UNCHECKED_CAST")
-            override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
-                return VerifyEmailViewModel(
-                    email = email,
-                    repository = VerifyEmailRepository()
-                ) as T
-            }
+    val verifyEmailViewModel = remember { VerifyEmailViewModel(VerifyEmailRepositoryImpl()) }
+    val loading = verifyEmailViewModel.loading
+
+    var code by remember { mutableStateOf("") }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var resendMessage by remember { mutableStateOf<String?>(null) }
+    var resendSecondsLeft by remember { mutableStateOf(60) }
+    var cooldownKey by remember { mutableStateOf(0) }
+
+
+    LaunchedEffect(cooldownKey) {
+        resendSecondsLeft = 60
+        while (resendSecondsLeft > 0) {
+            delay(1.seconds)
+            resendSecondsLeft--
         }
-    )
+    }
 
-    val uiState by viewModel.uiState.collectAsState()
 
-    // Navigate once when verification succeeds
-    LaunchedEffect(uiState.isVerified) {
-        if (uiState.isVerified) {
-            onVerified()
+    LaunchedEffect(resendMessage) {
+        if (resendMessage != null) {
+            delay(3.seconds)
+            resendMessage = null
         }
     }
 
     VerifyEmailScreen(
-        uiState = uiState,
-        onCodeChange = viewModel::onCodeChange,
-        onVerifyClick = viewModel::onVerifyClick,
-        onResendClick = viewModel::onResendClick,
-        onErrorShown = viewModel::onErrorShown,
+        uiState = VerifyEmailModel(
+            email = email,
+            code = code,
+            isVerifying = loading,
+            resendSecondsLeft = resendSecondsLeft,
+            errorMessage = errorMessage,
+            resendMessage = resendMessage
+        ),
+        onCodeChange = {
+            code = it.filter { c -> c.isDigit() }.take(6)
+            errorMessage = null
+        },
+        onVerifyClick = {
+            if (code.length == 6 && !loading) {
+                errorMessage = null
+                verifyEmailViewModel.verifyCode(email, code) { success, message ->
+                    if (success) {
+                        onVerified()
+                    } else {
+                        errorMessage = message
+                    }
+                }
+            }
+        },
+        onResendClick = {
+            if (resendSecondsLeft == 0 && !loading) {
+                errorMessage = null
+                resendMessage = null
+                verifyEmailViewModel.resendCode(email) { success, message ->
+                    if (success) {
+                        resendMessage = "Code sent again."
+                        cooldownKey++
+                    } else {
+                        errorMessage = message
+                    }
+                }
+            }
+        },
         onBackClick = onBackClick,
         onChangeEmailClick = onChangeEmailClick
     )
 }
 
-// ── Screen (stateless) ─────────────────────────────────────────────────────────
-
 @Composable
 fun VerifyEmailScreen(
-    uiState: VerifyEmailUiState,
+    uiState: VerifyEmailModel,
+    eyebrow: String = "ALMOST THERE",
+    title: String = "Verify your email",
+    buttonText: String = "Verify email",
     onCodeChange: (String) -> Unit = {},
     onVerifyClick: () -> Unit = {},
     onResendClick: () -> Unit = {},
-    onErrorShown: () -> Unit = {},
     onBackClick: () -> Unit = {},
     onChangeEmailClick: () -> Unit = {}
 ) {
     val scrollState = rememberScrollState()
     val focusRequester = remember { FocusRequester() }
 
-    // Auto-focus the hidden text field on open
     LaunchedEffect(Unit) {
         focusRequester.requestFocus()
     }
@@ -132,7 +169,6 @@ fun VerifyEmailScreen(
     ) {
         Spacer(modifier = Modifier.height(16.dp))
 
-        // ── Back arrow ─────────────────────────────────────────────────────────
         IconButton(onClick = onBackClick, modifier = Modifier.size(40.dp)) {
             Icon(
                 imageVector = BackArrowIcon,
@@ -144,7 +180,6 @@ fun VerifyEmailScreen(
 
         Spacer(modifier = Modifier.height(28.dp))
 
-        // ── Mail icon in soft green circle ──────────────────────────────────────
         Box(
             modifier = Modifier
                 .size(64.dp)
@@ -164,9 +199,8 @@ fun VerifyEmailScreen(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // ── Eyebrow ────────────────────────────────────────────────────────────
         Text(
-            text = "ALMOST THERE",
+            text = eyebrow,
             color = PrimaryGreen,
             fontSize = 12.sp,
             fontWeight = FontWeight.Bold,
@@ -176,9 +210,8 @@ fun VerifyEmailScreen(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // ── Title ──────────────────────────────────────────────────────────────
         Text(
-            text = "Verify your email",
+            text = title,
             color = TitleColor,
             fontSize = 28.sp,
             fontWeight = FontWeight.Bold,
@@ -187,7 +220,6 @@ fun VerifyEmailScreen(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // ── Subtitle with bold email ───────────────────────────────────────────
         Text(
             text = buildAnnotatedString {
                 withStyle(SpanStyle(color = SubtitleGray, fontWeight = FontWeight.Normal)) {
@@ -204,7 +236,6 @@ fun VerifyEmailScreen(
 
         Spacer(modifier = Modifier.height(4.dp))
 
-        // ── "Wrong email?" link ────────────────────────────────────────────────
         Text(
             text = "Wrong email?",
             color = PrimaryGreen,
@@ -220,7 +251,6 @@ fun VerifyEmailScreen(
 
         Spacer(modifier = Modifier.height(28.dp))
 
-        // ── Six code boxes with hidden BasicTextField ──────────────────────────
         CodeInputRow(
             code = uiState.code,
             onCodeChange = onCodeChange,
@@ -228,7 +258,6 @@ fun VerifyEmailScreen(
             focusRequester = focusRequester
         )
 
-        // ── Error text ─────────────────────────────────────────────────────────
         if (uiState.errorMessage != null) {
             Spacer(modifier = Modifier.height(8.dp))
             Text(
@@ -241,7 +270,6 @@ fun VerifyEmailScreen(
 
         Spacer(modifier = Modifier.height(28.dp))
 
-        // ── Verify button ──────────────────────────────────────────────────────
         val isEnabled = uiState.code.length == 6 && !uiState.isVerifying
         Button(
             onClick = onVerifyClick,
@@ -265,7 +293,7 @@ fun VerifyEmailScreen(
                 )
             } else {
                 Text(
-                    text = "Verify email",
+                    text = buttonText,
                     fontSize = 17.sp,
                     fontWeight = FontWeight.Bold,
                     fontFamily = AppFont
@@ -275,7 +303,6 @@ fun VerifyEmailScreen(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // ── Resend row ─────────────────────────────────────────────────────────
         Box(
             modifier = Modifier.fillMaxWidth(),
             contentAlignment = Alignment.Center
@@ -323,8 +350,6 @@ fun VerifyEmailScreen(
     }
 }
 
-// ── Code input boxes ───────────────────────────────────────────────────────────
-
 @Composable
 private fun CodeInputRow(
     code: String,
@@ -332,55 +357,70 @@ private fun CodeInputRow(
     isError: Boolean,
     focusRequester: FocusRequester
 ) {
-    Box {
-        // Hidden BasicTextField that handles all keyboard input, paste, backspace
+    val digitColor = Color(0xFF17372F)
+    val boxFill = Color.White
+    val normalBorder = Color(0xFFEADFC8)
+    val activeBorder = Color(0xFF0F5F57)
+    val errorBorder = Color(0xFFC0392B)
+
+    Box(modifier = Modifier.fillMaxWidth()) {
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            for (i in 0 until 6) {
+                val char = code.getOrNull(i)
+                val isFocused = code.length == i
+                val borderColor = when {
+                    isError -> errorBorder
+                    isFocused -> activeBorder
+                    else -> normalBorder
+                }
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(56.dp)
+                        .background(boxFill, RoundedCornerShape(16.dp))
+                        .border(1.dp, borderColor, RoundedCornerShape(16.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = char?.toString() ?: "",
+                        color = digitColor,
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = AppFont,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
+        }
+
         BasicTextField(
             value = TextFieldValue(text = code, selection = TextRange(code.length)),
             onValueChange = { onCodeChange(it.text) },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             singleLine = true,
+            textStyle = TextStyle(color = Color.Transparent),
             cursorBrush = SolidColor(Color.Transparent),
             modifier = Modifier
+                .matchParentSize()
                 .focusRequester(focusRequester)
-                .fillMaxWidth()
-                .height(1.dp) // effectively invisible
-                .background(Color.Transparent),
-            decorationBox = { innerTextField ->
-                // Draw the visible code boxes over the hidden field
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    for (i in 0 until 6) {
-                        val char = code.getOrNull(i)
-                        val isFocused = code.length == i
-                        val borderColor = when {
-                            isError -> ErrorRed
-                            isFocused -> PrimaryGreen
-                            else -> InputBorder
-                        }
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(56.dp)
-                                .background(InputFill, RoundedCornerShape(16.dp))
-                                .border(1.dp, borderColor, RoundedCornerShape(16.dp)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = char?.toString() ?: "",
-                                color = TitleColor,
-                                fontSize = 22.sp,
-                                fontWeight = FontWeight.Bold,
-                                fontFamily = AppFont,
-                                textAlign = TextAlign.Center
-                            )
-                        }
-                    }
-                }
-                // The actual inner text field (invisible, positioned behind)
-                innerTextField()
-            }
+        )
+    }
+}
+
+@Preview(showBackground = true, showSystemUi = true, name = "Sign-up verify")
+@Composable
+private fun VerifyEmailPreview() {
+    SplitStayTheme {
+        VerifyEmailScreen(
+            uiState = VerifyEmailModel(
+                email = "aayush@example.com",
+                code = "123",
+                resendSecondsLeft = 42
+            )
         )
     }
 }

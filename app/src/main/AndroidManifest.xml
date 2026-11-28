@@ -13,24 +13,8 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.SplitStay">
-        <activity
-            android:name=".MainActivity"
-            android:exported="true"
-            android:label="@string/app_name"
-            android:theme="@style/Theme.SplitStay"
-            android:windowSoftInputMode="adjustResize" />
-        <activity
-            android:name=".view.login.LoginUIActivity"
-            android:exported="true"
-            android:label="@string/title_activity_login_uiactivity"
-            android:theme="@style/Theme.SplitStay"
-            android:windowSoftInputMode="adjustResize" />
-        <activity
-            android:name=".view.register.RegisterUIActivity"
-            android:exported="true"
-            android:label="RegisterUIActivity"
-            android:theme="@style/Theme.SplitStay"
-            android:windowSoftInputMode="adjustResize" />
+
+        <!-- The ONLY launcher activity -->
         <activity
             android:name=".view.household.HouseholdDetailsActivity"
             android:exported="false"
@@ -47,14 +31,61 @@
             android:name=".view.login.WelcomeUIActivity"
             android:exported="true"
             android:label="@string/title_activity_welcome_uiactivity"
-            android:theme="@style/Theme.SplitStay"
-            android:windowSoftInputMode="adjustResize">
+            android:theme="@style/Theme.SplitStay">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity
+            android:name=".view.login.LoginUIActivity"
+            android:exported="false"
+            android:label="@string/title_activity_login_uiactivity"
+            android:theme="@style/Theme.SplitStay"
+            android:windowSoftInputMode="adjustResize" />
+        <activity
+            android:name=".view.register.RegisterUIActivity"
+            android:exported="false"
+            android:label="RegisterUIActivity"
+            android:theme="@style/Theme.SplitStay"
+            android:windowSoftInputMode="adjustResize" />
+        <activity
+            android:name=".view.verifyemail.VerifyEmailActivity"
+            android:exported="false"
+            android:theme="@style/Theme.SplitStay"
+            android:windowSoftInputMode="adjustResize" />
+        <activity
+            android:name=".MainActivity"
+            android:exported="false"
+            android:label="@string/app_name"
+            android:theme="@style/Theme.SplitStay"
+            android:windowSoftInputMode="adjustResize" />
+
+        <!-- Receives splitstay://login after Google sign-in (NOT a launcher) -->
+        <activity
+            android:name=".view.auth.AuthCallbackActivity"
+            android:exported="true"
+            android:label="@string/title_activity_auth_callback"
+            android:launchMode="singleTop"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data
+                    android:host="login"
+                    android:scheme="splitstay" />
+            </intent-filter>
+        </activity>
+        <activity
+            android:name=".view.forgotpassword.ForgotPasswordActivity"
+            android:exported="false"
+            android:label="Forgot Password"
+            android:theme="@style/Theme.SplitStay"
+            android:windowSoftInputMode="adjustResize" />
     </application>
 
 </manifest>

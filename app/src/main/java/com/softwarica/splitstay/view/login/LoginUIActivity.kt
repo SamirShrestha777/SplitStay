@@ -1,6 +1,8 @@
 package com.softwarica.splitstay.view.login
 
 import android.os.Bundle
+import android.util.Patterns
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -33,10 +35,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -47,9 +51,15 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.softwarica.splitstay.R
+import com.softwarica.splitstay.model.LoginModel
 import com.softwarica.splitstay.navigation.AppNavigator
+import com.softwarica.splitstay.repository.AuthRepositoryImpl
+import com.softwarica.splitstay.repository.GoogleOrigin
+import com.softwarica.splitstay.repository.startGoogleSignIn
 import com.softwarica.splitstay.ui.theme.SplitStayTheme
 import com.softwarica.splitstay.view.register.AppLogo
+import com.softwarica.splitstay.viewmodel.login.LoginViewModel
+import kotlinx.coroutines.launch
 
 class LoginUIActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -57,11 +67,11 @@ class LoginUIActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             SplitStayTheme {
-                LoginBody(
-                    // Back icon -> Welcome
-                    onBackClick = { AppNavigator.toWelcome(this, finishCurrent = true) },
-                    // "Create account" -> Register
-                    onCreateAccountClick = { AppNavigator.toRegister(this, finishCurrent = true) }
+                LoginScreen(
+                    onBackClick = { AppNavigator.back(this) },
+                    onCreateAccountClick = { AppNavigator.toRegister(this, finishCurrent = true) },
+                    onForgotPasswordClick = { AppNavigator.toForgotPassword(this) },
+                    onLoginSuccess = { AppNavigator.toHome(this) }
                 )
             }
         }
@@ -69,24 +79,136 @@ class LoginUIActivity : ComponentActivity() {
 }
 
 @Composable
-fun LoginBody(
-    onBackClick: () -> Unit = {},
-    onCreateAccountClick: () -> Unit = {}
+fun LoginScreen(
+    onBackClick: () -> Unit,
+    onCreateAccountClick: () -> Unit,
+    onForgotPasswordClick: () -> Unit,
+    onLoginSuccess: () -> Unit
 ) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val loginViewModel = remember { LoginViewModel(AuthRepositoryImpl()) }
+
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
+    var emailError by remember { mutableStateOf<String?>(null) }
+    var passwordError by remember { mutableStateOf<String?>(null) }
+    var authError by remember { mutableStateOf<String?>(null) }
+    var loading by remember { mutableStateOf(false) }
 
+    LoginBody(
+        state = LoginModel(
+            email = email,
+            password = password,
+            passwordVisible = passwordVisible,
+            emailError = emailError,
+            passwordError = passwordError,
+            authError = authError,
+            isLoading = loading
+        ),
+        onEmailChange = {
+            email = it
+            emailError = null
+            authError = null
+        },
+        onPasswordChange = {
+            password = it
+            passwordError = null
+            authError = null
+        },
+        onTogglePasswordVisibility = { passwordVisible = !passwordVisible },
+        onSignInClick = {
+            if (!loading) {
+                val trimmedEmail = email.trim()
+
+                emailError = validateEmail(trimmedEmail)
+                passwordError = validatePassword(password)
+                authError = null
+
+                if (emailError == null && passwordError == null) {
+                    loading = true
+                    loginViewModel.signIn(trimmedEmail, password) { success, message ->
+                        loading = false
+                        if (success) {
+                            Toast.makeText(context, "Login successful", Toast.LENGTH_SHORT).show()
+                            onLoginSuccess()
+                        } else {
+                            authError = friendlyMessage(message)
+                        }
+                    }
+                }
+            }
+        },
+        onGoogleClick = {
+            if (!loading) {
+                authError = null
+                scope.launch {
+                    startGoogleSignIn(GoogleOrigin.LOGIN).onFailure {
+                        authError = "Google sign-in failed. Check your connection and try again."
+                    }
+                }
+            }
+        },
+        onForgotPasswordClick = { if (!loading) onForgotPasswordClick() },
+        onBackClick = onBackClick,
+        onCreateAccountClick = onCreateAccountClick
+    )
+}
+
+private fun validateEmail(email: String): String? = when {
+    email.isEmpty() -> "Email is required."
+    !Patterns.EMAIL_ADDRESS.matcher(email).matches() -> "Enter a valid email address."
+    else -> null
+}
+
+private fun validatePassword(password: String): String? = when {
+    password.isEmpty() -> "Password is required."
+    password.length < 6 -> "Password must be at least 6 characters."
+    else -> null
+}
+
+private fun friendlyMessage(message: String): String {
+    val msg = message.lowercase()
+    return when {
+        "unable to resolve host" in msg || "timeout" in msg ||
+                "failed to connect" in msg || "network" in msg ||
+                "unknownhost" in msg || "unresolvedaddress" in msg ->
+            "Can't reach the server. Check your internet connection."
+        "email not confirmed" in msg || "email_not_confirmed" in msg ->
+            "Please confirm your email first."
+        else -> "Incorrect email or password."
+    }
+}
+
+@Composable
+fun LoginBody(
+    state: LoginModel,
+    onEmailChange: (String) -> Unit = {},
+    onPasswordChange: (String) -> Unit = {},
+    onTogglePasswordVisibility: () -> Unit = {},
+    onSignInClick: () -> Unit = {},
+    onGoogleClick: () -> Unit = {},
+    onForgotPasswordClick: () -> Unit = {},
+    onBackClick: () -> Unit = {},
+    onCreateAccountClick: () -> Unit = {}
+) {
     val backgroundColor = Color(0xFFFEF9F0)
     val primaryColor = Color(0xFF0F625C)
+    val errorColor = Color(0xFFC62828)
 
     val fieldColors = OutlinedTextFieldDefaults.colors(
         focusedContainerColor = Color.White,
         unfocusedContainerColor = Color.White,
+        errorContainerColor = Color.White,
         focusedBorderColor = primaryColor,
         unfocusedBorderColor = Color(0xFFD8D8D8),
+        errorBorderColor = errorColor,
         focusedTextColor = Color.Black,
-        unfocusedTextColor = Color.Black
+        unfocusedTextColor = Color.Black,
+        errorTextColor = Color.Black,
+        errorCursorColor = errorColor,
+        errorSupportingTextColor = errorColor
     )
 
     Column(
@@ -140,11 +262,10 @@ fun LoginBody(
 
         Spacer(modifier = Modifier.height(25.dp))
 
-        // Email field
         Text(text = "Email address", fontSize = 12.sp, color = Color.DarkGray)
         OutlinedTextField(
-            value = email,
-            onValueChange = { email = it },
+            value = state.email,
+            onValueChange = onEmailChange,
             placeholder = { Text("you@example.com", fontSize = 12.sp, color = Color.Gray) },
             textStyle = TextStyle(fontSize = 14.sp),
             modifier = Modifier
@@ -152,18 +273,24 @@ fun LoginBody(
                 .padding(top = 8.dp),
             shape = RoundedCornerShape(10.dp),
             singleLine = true,
+            isError = state.isEmailError,
+            supportingText = {
+                state.emailError?.let {
+                    Text(text = it, fontSize = 12.sp, color = errorColor)
+                }
+            },
             colors = fieldColors
         )
 
-        Spacer(modifier = Modifier.height(15.dp))
+        Spacer(modifier = Modifier.height(10.dp))
 
         Text(text = "Password", fontSize = 12.sp, color = Color.DarkGray)
         OutlinedTextField(
-            value = password,
-            onValueChange = { password = it },
+            value = state.password,
+            onValueChange = onPasswordChange,
             placeholder = { Text("At least 6 characters", fontSize = 12.sp, color = Color.Gray) },
             textStyle = TextStyle(fontSize = 14.sp),
-            visualTransformation = if (passwordVisible) {
+            visualTransformation = if (state.passwordVisible) {
                 VisualTransformation.None
             } else {
                 PasswordVisualTransformation()
@@ -173,21 +300,21 @@ fun LoginBody(
                 .padding(top = 8.dp),
             shape = RoundedCornerShape(10.dp),
             singleLine = true,
+            isError = state.isPasswordError,
+            supportingText = {
+                (state.passwordError ?: state.authError)?.let {
+                    Text(text = it, fontSize = 12.sp, color = errorColor)
+                }
+            },
             trailingIcon = {
-                IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                    if (passwordVisible) {
-                        Image(
-                            painter = painterResource(id = R.drawable.pwvisible),
-                            contentDescription = "Hide password",
-                            modifier = Modifier.size(20.dp)
-                        )
-                    } else {
-                        Image(
-                            painter = painterResource(id = R.drawable.pwhide),
-                            contentDescription = "Show password",
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
+                IconButton(onClick = onTogglePasswordVisibility) {
+                    Image(
+                        painter = painterResource(
+                            id = if (state.passwordVisible) R.drawable.pwvisible else R.drawable.pwhide
+                        ),
+                        contentDescription = if (state.passwordVisible) "Hide password" else "Show password",
+                        modifier = Modifier.size(20.dp)
+                    )
                 }
             },
             colors = fieldColors
@@ -201,26 +328,30 @@ fun LoginBody(
             textAlign = TextAlign.End,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = 12.dp)
+                .clickable { onForgotPasswordClick() }
+                .padding(top = 8.dp, bottom = 4.dp)
         )
 
         Button(
-            onClick = {},
+            onClick = onSignInClick,
+            enabled = !state.isLoading,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(50.dp)
                 .padding(top = 15.dp),
             shape = RoundedCornerShape(9.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = primaryColor)
+            colors = ButtonDefaults.buttonColors(
+                containerColor = primaryColor,
+                disabledContainerColor = primaryColor.copy(alpha = 0.6f)
+            )
         ) {
             Text(
-                text = "Sign in",
+                text = if (state.isLoading) "Signing in..." else "Sign in",
                 fontSize = 14.sp,
                 color = Color.White,
                 fontWeight = FontWeight.Bold
             )
         }
-
 
         Row(
             modifier = Modifier
@@ -248,8 +379,8 @@ fun LoginBody(
             )
         }
 
-        // Google button (UI only)
         Card(
+            onClick = onGoogleClick,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(48.dp)
@@ -277,7 +408,6 @@ fun LoginBody(
             }
         }
 
-
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -300,7 +430,19 @@ fun LoginBody(
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
 fun LoginPreview() {
+    SplitStayTheme { LoginBody(state = LoginModel()) }
+}
+
+@Preview(showBackground = true, showSystemUi = true)
+@Composable
+fun LoginErrorPreview() {
     SplitStayTheme {
-        LoginBody()
+        LoginBody(
+            state = LoginModel(
+                email = "aayush@example.com",
+                password = "wrongpass",
+                authError = "Incorrect email or password."
+            )
+        )
     }
 }
