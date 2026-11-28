@@ -5,6 +5,8 @@ import android.content.Context
 import android.content.Intent
 import com.softwarica.splitstay.MainActivity
 import com.softwarica.splitstay.view.forgotpassword.ForgotPasswordActivity
+import com.softwarica.splitstay.view.household.EditHouseholdActivity
+import com.softwarica.splitstay.view.household.HouseholdDetailsActivity
 import com.softwarica.splitstay.view.login.LoginUIActivity
 import com.softwarica.splitstay.view.login.WelcomeUIActivity
 import com.softwarica.splitstay.view.register.RegisterUIActivity
@@ -27,6 +29,22 @@ object AppNavigator {
 
     fun toRegister(context: Context, finishCurrent: Boolean = false) {
         context.startActivity(Intent(context, RegisterUIActivity::class.java))
+        finishIfNeeded(context, finishCurrent)
+    }
+
+    fun toHouseholdDetails(context: Context, householdId: String, finishCurrent: Boolean = false) {
+        val intent = Intent(context, HouseholdDetailsActivity::class.java).apply {
+            putExtra("HOUSEHOLD_ID", householdId)
+        }
+        context.startActivity(intent)
+        finishIfNeeded(context, finishCurrent)
+    }
+
+    fun toEditHousehold(context: Context, householdId: String, finishCurrent: Boolean = false) {
+        val intent = Intent(context, EditHouseholdActivity::class.java).apply {
+            putExtra("HOUSEHOLD_ID", householdId)
+        }
+        context.startActivity(intent)
         finishIfNeeded(context, finishCurrent)
     }
 
