@@ -3,6 +3,8 @@ package com.softwarica.splitstay.navigation
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
+import com.softwarica.splitstay.view.household.EditHouseholdActivity
+import com.softwarica.splitstay.view.household.HouseholdDetailsActivity
 import com.softwarica.splitstay.view.login.LoginUIActivity
 import com.softwarica.splitstay.view.login.WelcomeUIActivity
 import com.softwarica.splitstay.view.register.RegisterUIActivity
@@ -25,6 +27,26 @@ object AppNavigator {
 
     fun toRegister(context: Context, finishCurrent: Boolean = false) {
         open(context, RegisterUIActivity::class.java, finishCurrent)
+    }
+
+    fun toHouseholdDetails(context: Context, householdId: String, finishCurrent: Boolean = false) {
+        val intent = Intent(context, HouseholdDetailsActivity::class.java).apply {
+            putExtra("HOUSEHOLD_ID", householdId)
+        }
+        context.startActivity(intent)
+        if (finishCurrent && context is Activity) {
+            context.finish()
+        }
+    }
+
+    fun toEditHousehold(context: Context, householdId: String, finishCurrent: Boolean = false) {
+        val intent = Intent(context, EditHouseholdActivity::class.java).apply {
+            putExtra("HOUSEHOLD_ID", householdId)
+        }
+        context.startActivity(intent)
+        if (finishCurrent && context is Activity) {
+            context.finish()
+        }
     }
 
     private fun open(

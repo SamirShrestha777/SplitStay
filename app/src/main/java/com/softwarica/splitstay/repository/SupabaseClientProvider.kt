@@ -3,10 +3,11 @@ package com.softwarica.splitstay.repository
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.auth.Auth
 import io.github.jan.supabase.createSupabaseClient
+import io.github.jan.supabase.postgrest.Postgrest
 
 /**
  * Singleton that provides the shared [SupabaseClient] used throughout the app.
- * Configured with the Auth plugin required for email OTP verification.
+ * Configured with the Auth and Postgrest plugins.
  */
 object SupabaseClientProvider {
 
@@ -16,6 +17,7 @@ object SupabaseClientProvider {
             supabaseKey = SupabaseConfig.SUPABASE_ANON_KEY
         ) {
             install(Auth)
+            install(Postgrest)
         }
     }
 }

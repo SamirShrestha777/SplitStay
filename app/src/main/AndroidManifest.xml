@@ -32,6 +32,18 @@
             android:theme="@style/Theme.SplitStay"
             android:windowSoftInputMode="adjustResize" />
         <activity
+            android:name=".view.household.HouseholdDetailsActivity"
+            android:exported="false"
+            android:label="Household Details"
+            android:theme="@style/Theme.SplitStay"
+            android:windowSoftInputMode="adjustResize" />
+        <activity
+            android:name=".view.household.EditHouseholdActivity"
+            android:exported="false"
+            android:label="Edit Household"
+            android:theme="@style/Theme.SplitStay"
+            android:windowSoftInputMode="adjustResize" />
+        <activity
             android:name=".view.login.WelcomeUIActivity"
             android:exported="true"
             android:label="@string/title_activity_welcome_uiactivity"
